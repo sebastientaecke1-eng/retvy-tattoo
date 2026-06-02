@@ -3,7 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import {
+  createClientOrNull,
+  getBrowserSupabaseEnvError,
+} from "@/lib/supabase/client";
 import { redirectPathForUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,13 +20,18 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(getBrowserSupabaseEnvError());
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const supabase = createClient();
+    const supabase = createClientOrNull();
+    if (!supabase) {
+      setError(getBrowserSupabaseEnvError());
+      setLoading(false);
+      return;
+    }
 
     const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,

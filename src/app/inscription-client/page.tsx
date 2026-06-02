@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import {
+  createClientOrNull,
+  getBrowserSupabaseEnvError,
+} from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,12 +18,14 @@ export default function InscriptionClientPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(getBrowserSupabaseEnvError());
   const [info, setInfo] = useState<string | null>(null);
   const [accountExists, setAccountExists] = useState(false);
 
   useEffect(() => {
-    createClient().auth.getSession().then(({ data: { session } }) => {
+    const supabase = createClientOrNull();
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) router.replace("/client/dashboard");
     });
   }, [router]);
@@ -32,7 +37,12 @@ export default function InscriptionClientPage() {
     setInfo(null);
     setAccountExists(false);
 
-    const supabase = createClient();
+    const supabase = createClientOrNull();
+    if (!supabase) {
+      setError(getBrowserSupabaseEnvError());
+      setLoading(false);
+      return;
+    }
     const { data, error: signError } = await supabase.auth.signUp({
       email,
       password,

@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import {
+  createClientOrNull,
+  getBrowserSupabaseEnvError,
+} from "@/lib/supabase/client";
 import { CITIES, TATTOO_STYLES } from "@/lib/types";
 import { slugify } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -37,6 +40,11 @@ export function OnboardingWizard() {
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [slugState, setSlugState] = useState<SlugState>("idle");
+  const [envError, setEnvError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEnvError(getBrowserSupabaseEnvError());
+  }, []);
 
   const checkSlug = useCallback(async (value: string) => {
     if (!/^[a-z0-9]{3,32}$/.test(value)) {
@@ -99,7 +107,12 @@ export function OnboardingWizard() {
   }
 
   async function ensureSession() {
-    const supabase = createClient();
+    const supabase = createClientOrNull();
+    if (!supabase) {
+      throw new Error(
+        getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
+      );
+    }
     const { data: signData, error: signErr } = await supabase.auth.signUp({
       email,
       password,
@@ -198,7 +211,12 @@ export function OnboardingWizard() {
   async function finalize() {
     setLoading(true);
     try {
-      const supabase = createClient();
+      const supabase = createClientOrNull();
+      if (!supabase) {
+        throw new Error(
+          getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
+        );
+      }
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -317,6 +335,11 @@ export function OnboardingWizard() {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {envError && (
+          <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+            {envError}
+          </p>
+        )}
         {error && (
           <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
             {error}
@@ -495,11 +518,11 @@ export function OnboardingWizard() {
             <Button
               variant="ghost"
               onClick={() => setStep((s) => Math.max(0, s - 1))}
-              disabled={step === 0 || loading}
+              disabled={step === 0 || loading || !!envError}
             >
               Retour
             </Button>
-            <Button onClick={handleNext} disabled={loading}>
+            <Button onClick={handleNext} disabled={loading || !!envError}>
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : step === 3 ? (
