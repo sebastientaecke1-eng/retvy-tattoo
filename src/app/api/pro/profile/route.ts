@@ -15,11 +15,29 @@ const bodySchema = z.object({
   slug: z.string().regex(/^[a-z0-9]{3,32}$/),
 });
 
-export async function POST(request: Request) {
+async function resolveUser(request: Request) {
   const supabase = await createClient();
   const {
-    data: { user },
+    data: { user: cookieUser },
   } = await supabase.auth.getUser();
+  if (cookieUser) return cookieUser;
+
+  const authHeader = request.headers.get("Authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
+  if (!token) return null;
+
+  const {
+    data: { user: tokenUser },
+    error,
+  } = await supabase.auth.getUser(token);
+  if (error || !tokenUser) return null;
+  return tokenUser;
+}
+
+export async function POST(request: Request) {
+  const user = await resolveUser(request);
 
   if (!user) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });

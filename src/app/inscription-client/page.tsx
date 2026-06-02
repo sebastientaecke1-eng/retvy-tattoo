@@ -10,8 +10,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 
 export default function InscriptionClientPage() {
+  const { t } = useAppPreferences();
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -64,21 +66,24 @@ export default function InscriptionClientPage() {
       router.push("/client/dashboard");
       router.refresh();
     } else {
-      setInfo(
-        "Compte créé ! Vérifiez votre boîte mail pour activer votre compte.",
-      );
+      setInfo(t.signupClient.success);
     }
     setLoading(false);
   }
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
-      <Link href="/" className="text-sm text-zinc-500 hover:text-amber-400">
-        ← Retvy
+      <Link
+        href="/"
+        className="text-sm text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400"
+      >
+        {t.signupClient.back}
       </Link>
-      <h1 className="mt-6 text-2xl font-bold">Inscription client</h1>
-      <p className="mt-2 text-sm text-zinc-500">
-        Suivez vos projets qualifiés par l&apos;IA et vos rendez-vous.
+      <h1 className="mt-6 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+        {t.signupClient.title}
+      </h1>
+      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-500">
+        {t.signupClient.subtitle}
       </p>
 
       <Card className="mt-8">
@@ -86,7 +91,9 @@ export default function InscriptionClientPage() {
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-sm text-zinc-400">Prénom</label>
+                <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
+                  {t.signupClient.firstName}
+                </label>
                 <Input
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -94,7 +101,9 @@ export default function InscriptionClientPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-zinc-400">Nom</label>
+                <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
+                  {t.signupClient.lastName}
+                </label>
                 <Input
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -103,7 +112,9 @@ export default function InscriptionClientPage() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-zinc-400">Email</label>
+              <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
+                {t.signupClient.email}
+              </label>
               <Input
                 type="email"
                 value={email}
@@ -112,8 +123,8 @@ export default function InscriptionClientPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-zinc-400">
-                Mot de passe (8+ caractères)
+              <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
+                {t.signupClient.password}
               </label>
               <Input
                 type="password"
@@ -130,10 +141,10 @@ export default function InscriptionClientPage() {
               </p>
             )}
             {accountExists && (
-              <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
-                Un compte existe déjà.{" "}
+              <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+                {t.signupClient.already}{" "}
                 <Link href="/connexion" className="underline">
-                  Connectez-vous
+                  {t.signupClient.signIn}
                 </Link>
               </p>
             )}
@@ -144,11 +155,14 @@ export default function InscriptionClientPage() {
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Création…" : "Créer mon compte"}
+              {loading ? t.signupClient.submitting : t.signupClient.submit}
             </Button>
-            <p className="text-center text-sm text-zinc-500">
-              <Link href="/connexion" className="text-amber-400 hover:underline">
-                Déjà inscrit ?
+            <p className="text-center text-sm text-zinc-600 dark:text-zinc-500">
+              <Link
+                href="/connexion"
+                className="text-amber-600 hover:underline dark:text-amber-400"
+              >
+                {t.signupClient.alreadyRegistered}
               </Link>
             </p>
           </form>

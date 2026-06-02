@@ -2,7 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+html.light {
+  --background: #fafafa;
+  --foreground: #18181b;
+  --accent: #f59e0b;
+  --muted: #71717a;
+}
+
+html.dark {
   --background: #000000;
   --foreground: #fafafa;
   --accent: #f59e0b;

@@ -1,39 +1,82 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Settings } from "lucide-react";
+import { createClientOrNull } from "@/lib/supabase/client";
+import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 
 export function Header() {
+  const { t } = useAppPreferences();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClientOrNull();
+    if (!supabase) return;
+
+    const sync = () => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setIsLoggedIn(!!session);
+      });
+    };
+
+    sync();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => sync());
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-900/80 bg-black/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white/80 backdrop-blur-md dark:border-zinc-900/80 dark:bg-black/80">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href="/" className="text-xl font-bold tracking-tight">
-          <span className="text-amber-400">Ret</span>
-          <span className="text-zinc-100">vy</span>
+          <span className="text-amber-500 dark:text-amber-400">Ret</span>
+          <span className="text-zinc-900 dark:text-zinc-100">vy</span>
         </Link>
-        <nav className="hidden items-center gap-6 text-sm text-zinc-400 md:flex">
-          <Link href="/#chat" className="hover:text-amber-400 transition-colors">
-            Qualifier mon projet
+        <nav className="hidden items-center gap-6 text-sm text-zinc-600 dark:text-zinc-400 md:flex">
+          <Link
+            href="/#chat"
+            className="transition-colors hover:text-amber-600 dark:hover:text-amber-400"
+          >
+            {t.nav.qualify}
           </Link>
-          <Link href="/ink/demo" className="hover:text-amber-400 transition-colors">
-            Exemple profil
+          <Link
+            href="/ink/demo"
+            className="transition-colors hover:text-amber-600 dark:hover:text-amber-400"
+          >
+            {t.nav.exampleProfile}
           </Link>
         </nav>
         <div className="flex items-center gap-2">
+          {isLoggedIn && (
+            <Link
+              href="/parametres"
+              aria-label={t.nav.settingsAria}
+              title={t.nav.settings}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-amber-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-amber-400"
+            >
+              <Settings className="h-5 w-5" />
+            </Link>
+          )}
           <Link
             href="/connexion"
-            className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-amber-400"
+            className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-amber-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-amber-400"
           >
-            Connexion
+            {t.nav.login}
           </Link>
           <Link
             href="/inscription-client"
             className="hidden rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-black shadow-lg shadow-amber-500/20 transition-colors hover:bg-amber-400 sm:inline-flex"
           >
-            Client
+            {t.nav.client}
           </Link>
           <Link
             href="/pro/inscription"
-            className="hidden rounded-lg border border-amber-500/50 px-3 py-1.5 text-sm text-amber-400 transition-colors hover:bg-amber-500/10 sm:inline-flex"
+            className="hidden rounded-lg border border-amber-500/50 px-3 py-1.5 text-sm text-amber-600 transition-colors hover:bg-amber-500/10 dark:text-amber-400 sm:inline-flex"
           >
-            Pro
+            {t.nav.pro}
           </Link>
         </div>
       </div>

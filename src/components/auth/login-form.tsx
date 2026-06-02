@@ -11,8 +11,10 @@ import { redirectPathForUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 
 export function LoginForm() {
+  const { t } = useAppPreferences();
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
@@ -58,15 +60,17 @@ export function LoginForm() {
   return (
     <Card className="mt-8">
       <CardHeader>
-        <p className="text-sm text-zinc-500">
-          Retrouvez vos rendez-vous ou votre espace professionnel.
+        <p className="text-sm text-zinc-600 dark:text-zinc-500">
+          {t.login.cardHint}
         </p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleLogin} className="space-y-4">
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
           <div>
-            <label className="mb-1 block text-sm text-zinc-400">Email</label>
+            <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
+              {t.login.email}
+            </label>
             <Input
               type="email"
               value={email}
@@ -76,8 +80,8 @@ export function LoginForm() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm text-zinc-400">
-              Mot de passe
+            <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
+              {t.login.password}
             </label>
             <Input
               type="password"
@@ -88,17 +92,23 @@ export function LoginForm() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Connexion…" : "Se connecter"}
+            {loading ? t.login.submitting : t.login.submit}
           </Button>
         </form>
-        <p className="mt-4 text-center text-sm text-zinc-500">
-          Pas de compte ?{" "}
-          <Link href="/inscription-client" className="text-amber-400 hover:underline">
-            Client
+        <p className="mt-4 text-center text-sm text-zinc-600 dark:text-zinc-500">
+          {t.login.noAccount}{" "}
+          <Link
+            href="/inscription-client"
+            className="text-amber-600 hover:underline dark:text-amber-400"
+          >
+            {t.login.client}
           </Link>
           {" · "}
-          <Link href="/pro/inscription" className="text-amber-400 hover:underline">
-            Pro
+          <Link
+            href="/pro/inscription"
+            className="text-amber-600 hover:underline dark:text-amber-400"
+          >
+            {t.login.pro}
           </Link>
         </p>
       </CardContent>

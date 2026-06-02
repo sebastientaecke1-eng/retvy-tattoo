@@ -8,7 +8,8 @@ export const Input = forwardRef<
   <input
     ref={ref}
     className={cn(
-      "w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder:text-zinc-600",
+      "w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-zinc-900 placeholder:text-zinc-400",
+      "dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-600",
       "focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20",
       className,
     )}

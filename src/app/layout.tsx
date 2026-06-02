@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { AppPreferencesProvider } from "@/components/providers/app-preferences-provider";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 
@@ -27,13 +28,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className="dark">
+    <html lang="fr" className="dark" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-black antialiased text-zinc-100`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-zinc-50 antialiased text-zinc-900 dark:bg-black dark:text-zinc-100`}
       >
-        <Header />
-        <main className="min-h-[calc(100vh-8rem)]">{children}</main>
-        <Footer />
+        <AppPreferencesProvider>
+          <Header />
+          <main className="min-h-[calc(100vh-8rem)]">{children}</main>
+          <Footer />
+        </AppPreferencesProvider>
       </body>
     </html>
   );

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import type { Session } from "@supabase/supabase-js";
 import {
   createClientOrNull,
   getBrowserSupabaseEnvError,
@@ -41,9 +42,19 @@ export function OnboardingWizard() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [slugState, setSlugState] = useState<SlugState>("idle");
   const [envError, setEnvError] = useState<string | null>(null);
+  /** Session établie à l'étape Compte (cookies Supabase + repli mémoire). */
+  const [authSession, setAuthSession] = useState<Session | null>(null);
 
   useEffect(() => {
     setEnvError(getBrowserSupabaseEnvError());
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClientOrNull();
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setAuthSession(session);
+    });
   }, []);
 
   const checkSlug = useCallback(async (value: string) => {
@@ -106,19 +117,65 @@ export function OnboardingWizard() {
     );
   }
 
-  async function ensureSession() {
+  function rememberSession(session: Session | null) {
+    if (session) setAuthSession(session);
+  }
+
+  async function signInWithPassword() {
     const supabase = createClientOrNull();
     if (!supabase) {
       throw new Error(
         getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
       );
     }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes("invalid") || msg.includes("credentials")) {
+        throw new Error("Mot de passe incorrect pour cet email.");
+      }
+      throw new Error(error.message);
+    }
+    if (!data.session) throw new Error("Session non établie après connexion.");
+    rememberSession(data.session);
+    return data.session;
+  }
+
+  /** Crée le compte + session à l'étape Compte. */
+  async function establishSession() {
+    const supabase = createClientOrNull();
+    if (!supabase) {
+      throw new Error(
+        getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
+      );
+    }
+
+    const { data: existing } = await supabase.auth.getSession();
+    if (existing.session) {
+      rememberSession(existing.session);
+      return existing.session;
+    }
+    if (authSession?.access_token) {
+      const { data: refreshed, error: refreshErr } =
+        await supabase.auth.setSession({
+          access_token: authSession.access_token,
+          refresh_token: authSession.refresh_token,
+        });
+      if (!refreshErr && refreshed.session) {
+        rememberSession(refreshed.session);
+        return refreshed.session;
+      }
+    }
+
     const { data: signData, error: signErr } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/pro/inscription`,
-        data: { first_name: firstName, last_name: lastName, phone },
+        data: { first_name: firstName, last_name: lastName },
       },
     });
 
@@ -129,34 +186,58 @@ export function OnboardingWizard() {
         msg.includes("registered") ||
         msg.includes("exists")
       ) {
-        const { error: siErr } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (siErr) throw new Error("Compte existant — mot de passe incorrect.");
-      } else {
-        throw signErr;
+        return signInWithPassword();
       }
-    } else if (!signData.session) {
-      const { error: siErr } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (siErr) {
-        throw new Error(
-          "Confirmez votre email puis reconnectez-vous.",
-        );
+      throw signErr;
+    }
+
+    if (signData.session) {
+      rememberSession(signData.session);
+      return signData.session;
+    }
+
+    return signInWithPassword();
+  }
+
+  /** À l'étape Slug : réutilise la session ou reconnecte avec email/mot de passe. */
+  async function requireSession() {
+    const supabase = createClientOrNull();
+    if (!supabase) {
+      throw new Error(
+        getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
+      );
+    }
+
+    const { data: current } = await supabase.auth.getSession();
+    if (current.session) {
+      rememberSession(current.session);
+      return current.session;
+    }
+
+    if (authSession?.access_token) {
+      const { data: restored, error: restoreErr } =
+        await supabase.auth.setSession({
+          access_token: authSession.access_token,
+          refresh_token: authSession.refresh_token,
+        });
+      if (!restoreErr && restored.session) {
+        rememberSession(restored.session);
+        return restored.session;
       }
     }
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) throw new Error("Session non établie.");
+    return signInWithPassword();
   }
 
-  async function createProfile() {
+  async function createProfile(session: Session) {
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (session.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
     const res = await fetch("/api/pro/profile", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
+      credentials: "include",
       body: JSON.stringify({
         first_name: firstName,
         last_name: lastName,
@@ -242,7 +323,15 @@ export function OnboardingWizard() {
         setError("Remplissez tous les champs (mot de passe 6+ caractères).");
         return;
       }
-      setStep(1);
+      setLoading(true);
+      try {
+        await establishSession();
+        setStep(1);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erreur");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
@@ -271,8 +360,9 @@ export function OnboardingWizard() {
       }
       setLoading(true);
       try {
-        await ensureSession();
-        await createProfile();
+        const session = await requireSession();
+        await createProfile(session);
+        router.refresh();
         setStep(4);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur");
@@ -295,8 +385,11 @@ export function OnboardingWizard() {
             <span className="text-amber-400">/ink/{slug}</span> est prêt.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href={`/ink/${slug}`}>
-              <Button variant="outline">Voir mon profil</Button>
+            <Link
+              href={`/ink/${slug}`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/50 px-5 py-2.5 text-sm text-amber-400 transition-colors hover:bg-amber-500/10"
+            >
+              Voir mon profil
             </Link>
             <Button onClick={() => router.push("/pro/dashboard")}>
               Dashboard
