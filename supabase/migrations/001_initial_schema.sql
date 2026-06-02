@@ -1,0 +1,3 @@
+-- La base Retvy est déjà provisionnée dans le projet Supabase xtwgjpjovkctfkymxzda.
+-- Voir les migrations dans /Users/taecke/retvy/supabase/migrations/
+-- Tables utilisées par retvy-v2 : user_roles, pro_profiles, vue pro_profiles_public
