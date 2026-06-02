@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 export function Header() {
   return (
@@ -18,18 +17,23 @@ export function Header() {
           </Link>
         </nav>
         <div className="flex items-center gap-2">
-          <Link href="/connexion">
-            <Button variant="ghost" size="sm">
-              Connexion
-            </Button>
+          <Link
+            href="/connexion"
+            className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-amber-400"
+          >
+            Connexion
           </Link>
-          <Link href="/inscription-client" className="hidden sm:block">
-            <Button size="sm">Client</Button>
+          <Link
+            href="/inscription-client"
+            className="hidden rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-black shadow-lg shadow-amber-500/20 transition-colors hover:bg-amber-400 sm:inline-flex"
+          >
+            Client
           </Link>
-          <Link href="/pro/inscription" className="hidden sm:block">
-            <Button variant="outline" size="sm">
-              Pro
-            </Button>
+          <Link
+            href="/pro/inscription"
+            className="hidden rounded-lg border border-amber-500/50 px-3 py-1.5 text-sm text-amber-400 transition-colors hover:bg-amber-500/10 sm:inline-flex"
+          >
+            Pro
           </Link>
         </div>
       </div>
