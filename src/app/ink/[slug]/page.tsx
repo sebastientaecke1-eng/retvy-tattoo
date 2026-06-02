@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { MapPin, Palette } from "lucide-react";
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export default async function InkProfilePage({ params }: PageProps) {
-  const { slug } = params;
+  const { slug } = await params;
   const supabase = await createClient();
 
   const { data: profile } = await supabase
