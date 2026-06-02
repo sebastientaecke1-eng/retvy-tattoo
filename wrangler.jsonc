@@ -6,5 +6,43 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
+  },
+
+  "vars": {
+    "NODE_ENV": "production",
+
+    // Mets ton vrai domaine prod ici
+    "NEXT_PUBLIC_APP_URL": "https://retvy.fr",
+
+    "NEXT_PUBLIC_SUPABASE_URL": "https://xtwgjpjovkctfkymxzda.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_VYfD2dWzVV03he4JTVCBBA_6tYic20g",
+
+    // Fallback server-side
+    "SUPABASE_URL": "https://xtwgjpjovkctfkymxzda.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_VYfD2dWzVV03he4JTVCBBA_6tYic20g",
+
+    "OPENAI_MODEL": "gpt-4o-mini",
+    "BREVO_SENDER_EMAIL": "contact@retvy.fr",
+    "BREVO_SENDER_NAME": "Retvy",
+
+    "STRIPE_PRICE_ID": "price_1TZdVSA43PhmUn8w9ydG81MO"
+  },
+
+  "env": {
+    "preview": {
+      "name": "retvy-v2-preview",
+      "vars": {
+        "NODE_ENV": "production",
+        "NEXT_PUBLIC_APP_URL": "https://preview.retvy.fr",
+        "NEXT_PUBLIC_SUPABASE_URL": "https://xtwgjpjovkctfkymxzda.supabase.co",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_VYfD2dWzVV03he4JTVCBBA_6tYic20g",
+        "SUPABASE_URL": "https://xtwgjpjovkctfkymxzda.supabase.co",
+        "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_VYfD2dWzVV03he4JTVCBBA_6tYic20g",
+        "OPENAI_MODEL": "gpt-4o-mini",
+        "BREVO_SENDER_EMAIL": "contact@retvy.fr",
+        "BREVO_SENDER_NAME": "Retvy",
+        "STRIPE_PRICE_ID": "price_1TZdVSA43PhmUn8w9ydG81MO"
+      }
+    }
   }
 }
