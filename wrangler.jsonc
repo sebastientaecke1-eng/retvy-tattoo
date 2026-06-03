@@ -23,11 +23,11 @@
     "NEXT_PUBLIC_APP_URL": "https://retvy.fr",
 
     "NEXT_PUBLIC_SUPABASE_URL": "https://xtwgjpjovkctfkymxzda.supabase.co",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_VYfD2dWzVV03he4JTVCBBA_6tYic20g",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_-i4pyt7dPuVwvkMTCukpNg_xvuUS_hG",
 
     // Fallback server-side
     "SUPABASE_URL": "https://xtwgjpjovkctfkymxzda.supabase.co",
-    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_VYfD2dWzVV03he4JTVCBBA_6tYic20g",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_-i4pyt7dPuVwvkMTCukpNg_xvuUS_hG",
 
     "OPENAI_MODEL": "gpt-4o-mini",
     "BREVO_SENDER_EMAIL": "contact@retvy.fr",
@@ -45,9 +45,9 @@
         "NODE_ENV": "production",
         "NEXT_PUBLIC_APP_URL": "https://preview.retvy.fr",
         "NEXT_PUBLIC_SUPABASE_URL": "https://xtwgjpjovkctfkymxzda.supabase.co",
-        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_VYfD2dWzVV03he4JTVCBBA_6tYic20g",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_-i4pyt7dPuVwvkMTCukpNg_xvuUS_hG",
         "SUPABASE_URL": "https://xtwgjpjovkctfkymxzda.supabase.co",
-        "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_VYfD2dWzVV03he4JTVCBBA_6tYic20g",
+        "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_-i4pyt7dPuVwvkMTCukpNg_xvuUS_hG",
         "OPENAI_MODEL": "gpt-4o-mini",
         "BREVO_SENDER_EMAIL": "contact@retvy.fr",
         "BREVO_SENDER_NAME": "Retvy",

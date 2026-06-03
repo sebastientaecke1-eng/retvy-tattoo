@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
@@ -16,7 +16,18 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Banknote, Check, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 
 const STEPS = ["Compte", "Infos", "Styles", "Slug", "Abonnement", "Stripe"] as const;
+const ONBOARDING_SESSION_KEY = "retvy:pro-onboarding:session";
 type SlugState = "idle" | "checking" | "available" | "taken" | "invalid";
+
+type StoredSession = {
+  access_token: string;
+  refresh_token: string;
+};
+
+type EstablishSessionResult = {
+  session: Session | null;
+  pendingEmail: boolean;
+};
 
 export function OnboardingWizard() {
   const router = useRouter();
@@ -45,17 +56,11 @@ export function OnboardingWizard() {
   const [emailPending, setEmailPending] = useState(false);
   /** Session établie à l'étape Compte (cookies Supabase + repli mémoire). */
   const [authSession, setAuthSession] = useState<Session | null>(null);
+  /** Ref stable pour requireSession (évite perte entre étapes). */
+  const authSessionRef = useRef<Session | null>(null);
 
   useEffect(() => {
     setEnvError(getBrowserSupabaseEnvError());
-  }, []);
-
-  useEffect(() => {
-    const supabase = createClientOrNull();
-    if (!supabase) return;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setAuthSession(session);
-    });
   }, []);
 
   const checkSlug = useCallback(async (value: string) => {
@@ -128,9 +133,78 @@ export function OnboardingWizard() {
     );
   }
 
-  function rememberSession(session: Session | null) {
-    if (session) setAuthSession(session);
-  }
+  const readStoredSession = useCallback((): StoredSession | null => {
+    try {
+      const raw = sessionStorage.getItem(ONBOARDING_SESSION_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as StoredSession;
+      if (!parsed.access_token || !parsed.refresh_token) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const rememberSession = useCallback((session: Session | null) => {
+    if (!session) return;
+    authSessionRef.current = session;
+    setAuthSession(session);
+    try {
+      sessionStorage.setItem(
+        ONBOARDING_SESSION_KEY,
+        JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        } satisfies StoredSession),
+      );
+    } catch {
+      /* quota / mode privé */
+    }
+  }, []);
+
+  const syncSessionToClient = useCallback(
+    async (session: Session | StoredSession): Promise<Session | null> => {
+      const supabase = createClientOrNull();
+      if (!supabase) return null;
+
+      const { data, error } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+
+      if (error) {
+        console.warn("[onboarding] setSession:", error.message);
+        if ("user" in session && session.user) {
+          rememberSession(session as Session);
+          return session as Session;
+        }
+        return null;
+      }
+
+      const active = data.session;
+      if (active) rememberSession(active);
+      return active;
+    },
+    [rememberSession],
+  );
+
+  useEffect(() => {
+    const supabase = createClientOrNull();
+    if (!supabase) return;
+
+    void (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        rememberSession(session);
+        return;
+      }
+
+      const stored = readStoredSession();
+      if (stored) {
+        await syncSessionToClient(stored);
+      }
+    })();
+  }, [rememberSession, readStoredSession, syncSessionToClient]);
 
   async function signInWithPassword() {
     const supabase = createClientOrNull();
@@ -151,12 +225,11 @@ export function OnboardingWizard() {
       throw new Error(error.message);
     }
     if (!data.session) throw new Error("Session non établie après connexion.");
-    rememberSession(data.session);
-    return data.session;
+    return (await syncSessionToClient(data.session)) ?? data.session;
   }
 
   /** Crée le compte + session à l'étape Compte. */
-  async function establishSession() {
+  async function establishSession(): Promise<EstablishSessionResult> {
     const supabase = createClientOrNull();
     if (!supabase) {
       throw new Error(
@@ -166,19 +239,20 @@ export function OnboardingWizard() {
 
     const { data: existing } = await supabase.auth.getSession();
     if (existing.session) {
-      rememberSession(existing.session);
-      return existing.session;
+      const synced = await syncSessionToClient(existing.session);
+      return { session: synced ?? existing.session, pendingEmail: false };
     }
-    if (authSession?.access_token) {
-      const { data: refreshed, error: refreshErr } =
-        await supabase.auth.setSession({
-          access_token: authSession.access_token,
-          refresh_token: authSession.refresh_token,
-        });
-      if (!refreshErr && refreshed.session) {
-        rememberSession(refreshed.session);
-        return refreshed.session;
-      }
+
+    const fromRef = authSessionRef.current;
+    if (fromRef?.access_token) {
+      const synced = await syncSessionToClient(fromRef);
+      if (synced) return { session: synced, pendingEmail: false };
+    }
+
+    const stored = readStoredSession();
+    if (stored) {
+      const synced = await syncSessionToClient(stored);
+      if (synced) return { session: synced, pendingEmail: false };
     }
 
     const appUrl =
@@ -203,28 +277,30 @@ export function OnboardingWizard() {
     if (error) {
       if (isAlreadyRegistered(error.message)) {
         setEmailPending(false);
-        return signInWithPassword();
+        const session = await signInWithPassword();
+        return { session, pendingEmail: false };
       }
       throw new Error(error.message);
     }
 
     if (data.user?.identities?.length === 0) {
       setEmailPending(false);
-      return signInWithPassword();
+      const session = await signInWithPassword();
+      return { session, pendingEmail: false };
     }
 
     if (!data.session) {
       setEmailPending(true);
-      return null;
+      return { session: null, pendingEmail: true };
     }
 
-    rememberSession(data.session);
     setEmailPending(false);
-    return data.session;
+    const session = await syncSessionToClient(data.session);
+    return { session: session ?? data.session, pendingEmail: false };
   }
 
   /** À l'étape Slug : réutilise la session ou reconnecte avec email/mot de passe. */
-  async function requireSession() {
+  async function requireSession(): Promise<Session> {
     const supabase = createClientOrNull();
     if (!supabase) {
       throw new Error(
@@ -233,24 +309,36 @@ export function OnboardingWizard() {
     }
 
     const { data: current } = await supabase.auth.getSession();
-    if (current.session) {
-      rememberSession(current.session);
-      return current.session;
+    if (current.session?.access_token) {
+      const synced = await syncSessionToClient(current.session);
+      if (synced?.access_token) return synced;
+    }
+
+    const fromRef = authSessionRef.current;
+    if (fromRef?.access_token) {
+      const synced = await syncSessionToClient(fromRef);
+      if (synced?.access_token) return synced;
+    }
+
+    const stored = readStoredSession();
+    if (stored) {
+      const synced = await syncSessionToClient(stored);
+      if (synced?.access_token) return synced;
     }
 
     if (authSession?.access_token) {
-      const { data: restored, error: restoreErr } =
-        await supabase.auth.setSession({
-          access_token: authSession.access_token,
-          refresh_token: authSession.refresh_token,
-        });
-      if (!restoreErr && restored.session) {
-        rememberSession(restored.session);
-        return restored.session;
-      }
+      const synced = await syncSessionToClient(authSession);
+      if (synced?.access_token) return synced;
     }
 
-    return signInWithPassword();
+    if (email && password.length >= 6) {
+      const session = await signInWithPassword();
+      if (session?.access_token) return session;
+    }
+
+    throw new Error(
+      "Session expirée. Revenez à l'étape Compte et reconnectez-vous avec le même email et mot de passe.",
+    );
   }
 
   async function createProfile(session: Session) {
@@ -349,7 +437,16 @@ export function OnboardingWizard() {
       }
       setLoading(true);
       try {
-        await establishSession();
+        const { session, pendingEmail } = await establishSession();
+        if (!session && pendingEmail) {
+          setStep(1);
+          return;
+        }
+        if (!session?.access_token) {
+          throw new Error(
+            "Session non établie après inscription. Réessayez ou connectez-vous.",
+          );
+        }
         setStep(1);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur");
@@ -382,9 +479,18 @@ export function OnboardingWizard() {
         setError("Choisissez un slug disponible.");
         return;
       }
+      if (emailPending) {
+        setError(
+          "Confirmez d'abord votre email (lien reçu par mail), puis revenez créer votre slug.",
+        );
+        return;
+      }
       setLoading(true);
       try {
         const session = await requireSession();
+        if (!session.access_token) {
+          throw new Error("Session invalide. Reconnectez-vous à l'étape Compte.");
+        }
         await createProfile(session);
         router.refresh();
         setStep(4);
