@@ -14,10 +14,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 
 export function LoginForm() {
-  const { t } = useAppPreferences();
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
+  const { t } = useAppPreferences();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,7 +61,7 @@ export function LoginForm() {
     <Card className="mt-8">
       <CardHeader>
         <p className="text-sm text-zinc-600 dark:text-zinc-500">
-          {t.login.cardHint}
+          {t("login.cardHint")}
         </p>
       </CardHeader>
       <CardContent>
@@ -69,7 +69,7 @@ export function LoginForm() {
           {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
           <div>
             <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
-              {t.login.email}
+              {t("login.email")}
             </label>
             <Input
               type="email"
@@ -81,7 +81,7 @@ export function LoginForm() {
           </div>
           <div>
             <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
-              {t.login.password}
+              {t("login.password")}
             </label>
             <Input
               type="password"
@@ -92,23 +92,23 @@ export function LoginForm() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? t.login.submitting : t.login.submit}
+            {loading ? t("login.submitting") : t("login.submit")}
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-zinc-600 dark:text-zinc-500">
-          {t.login.noAccount}{" "}
+          {t("login.noAccount")}{" "}
           <Link
             href="/inscription-client"
             className="text-amber-600 hover:underline dark:text-amber-400"
           >
-            {t.login.client}
+            {t("nav.client")}
           </Link>
           {" · "}
           <Link
             href="/pro/inscription"
             className="text-amber-600 hover:underline dark:text-amber-400"
           >
-            {t.login.pro}
+            {t("nav.pro")}
           </Link>
         </p>
       </CardContent>

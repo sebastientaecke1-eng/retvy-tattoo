@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     client_reference_id: user.id,
     line_items: [{ price: priceId, quantity: 1 }],
     subscription_data: {
-      trial_period_days: 60,
+      trial_period_days: 30,
       trial_settings: {
         end_behavior: { missing_payment_method: "cancel" },
       },

@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 import {
   translations,
@@ -17,12 +18,25 @@ import {
 const THEME_KEY = "retvy-theme";
 const LOCALE_KEY = "retvy-locale";
 
+type NestedKey<T> = T extends object
+  ? {
+      [K in keyof T]: K extends string
+        ? T[K] extends object
+          ? `${K}.${NestedKey<T[K]>}`
+          : K
+        : never;
+    }[keyof T]
+  : never;
+
+export type MessageKey = NestedKey<(typeof translations)["fr"]>;
+
 type AppPreferencesContextValue = {
   theme: Theme;
   locale: Locale;
   setTheme: (theme: Theme) => void;
   setLocale: (locale: Locale) => void;
-  t: (typeof translations)[Locale];
+  toggleTheme: () => void;
+  t: (key: MessageKey) => string;
   mounted: boolean;
 };
 
@@ -30,55 +44,74 @@ const AppPreferencesContext = createContext<AppPreferencesContextValue | null>(
   null,
 );
 
-function readTheme(): Theme {
+function getNested(obj: Record<string, unknown>, path: string): string {
+  const parts = path.split(".");
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current == null || typeof current !== "object") return path;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return typeof current === "string" ? current : path;
+}
+
+function readStoredTheme(): Theme {
   if (typeof window === "undefined") return "dark";
   const stored = localStorage.getItem(THEME_KEY);
   return stored === "light" ? "light" : "dark";
 }
 
-function readLocale(): Locale {
+function readStoredLocale(): Locale {
   if (typeof window === "undefined") return "fr";
   const stored = localStorage.getItem(LOCALE_KEY);
   return stored === "en" ? "en" : "fr";
 }
 
-export function AppPreferencesProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function applyThemeToDocument(theme: Theme) {
+  const root = document.documentElement;
+  root.classList.remove("dark", "light");
+  root.classList.add(theme);
+  root.lang = root.lang.startsWith("en") ? root.lang : root.lang;
+}
+
+function applyLocaleToDocument(locale: Locale) {
+  document.documentElement.lang = locale;
+}
+
+export function AppPreferencesProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("dark");
   const [locale, setLocaleState] = useState<Locale>("fr");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setThemeState(readTheme());
-    setLocaleState(readLocale());
+    const storedTheme = readStoredTheme();
+    const storedLocale = readStoredLocale();
+    setThemeState(storedTheme);
+    setLocaleState(storedLocale);
+    applyThemeToDocument(storedTheme);
+    applyLocaleToDocument(storedLocale);
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-    const root = document.documentElement;
-    root.classList.remove("dark", "light");
-    root.classList.add(theme);
-    root.lang = locale === "en" ? "en" : "fr";
-    localStorage.setItem(THEME_KEY, theme);
-  }, [theme, mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    document.documentElement.lang = locale === "en" ? "en" : "fr";
-    localStorage.setItem(LOCALE_KEY, locale);
-  }, [locale, mounted]);
-
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
+    localStorage.setItem(THEME_KEY, next);
+    applyThemeToDocument(next);
   }, []);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
+    localStorage.setItem(LOCALE_KEY, next);
+    applyLocaleToDocument(next);
   }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  }, [setTheme, theme]);
+
+  const t = useCallback(
+    (key: MessageKey) => getNested(translations[locale] as Record<string, unknown>, key),
+    [locale],
+  );
 
   const value = useMemo(
     () => ({
@@ -86,10 +119,11 @@ export function AppPreferencesProvider({
       locale,
       setTheme,
       setLocale,
-      t: translations[locale],
+      toggleTheme,
+      t,
       mounted,
     }),
-    [theme, locale, setTheme, setLocale, mounted],
+    [theme, locale, setTheme, setLocale, toggleTheme, t, mounted],
   );
 
   return (
@@ -102,9 +136,7 @@ export function AppPreferencesProvider({
 export function useAppPreferences() {
   const ctx = useContext(AppPreferencesContext);
   if (!ctx) {
-    throw new Error(
-      "useAppPreferences must be used within AppPreferencesProvider",
-    );
+    throw new Error("useAppPreferences must be used within AppPreferencesProvider");
   }
   return ctx;
 }

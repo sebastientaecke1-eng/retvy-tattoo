@@ -29,7 +29,16 @@ export default async function ClientDashboardLayout({
           <p className="mt-1 text-lg font-medium">{name}</p>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-sm text-zinc-500 hover:text-amber-400">
+          <Link
+            href="/parametres"
+            className="text-sm text-zinc-600 hover:text-amber-600 dark:text-zinc-500 dark:hover:text-amber-400"
+          >
+            Paramètres
+          </Link>
+          <Link
+            href="/"
+            className="text-sm text-zinc-600 hover:text-amber-600 dark:text-zinc-500 dark:hover:text-amber-400"
+          >
             Accueil
           </Link>
           <SignOutButton />

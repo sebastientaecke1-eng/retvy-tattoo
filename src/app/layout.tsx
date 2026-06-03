@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { AppPreferencesProvider } from "@/components/providers/app-preferences-provider";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { AppPreferencesProvider } from "@/components/providers/app-preferences-provider";
+import { ThemeBootstrap } from "@/components/providers/theme-bootstrap";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -29,8 +30,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className="dark" suppressHydrationWarning>
+      <head>
+        <ThemeBootstrap />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-zinc-50 antialiased text-zinc-900 dark:bg-black dark:text-zinc-100`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-zinc-50 text-zinc-900 antialiased dark:bg-black dark:text-zinc-100`}
       >
         <AppPreferencesProvider>
           <Header />

@@ -1,3 +1,8 @@
+import {
+  getPublicSupabaseAnonKey,
+  getPublicSupabaseUrl,
+} from "./public-config";
+
 function readEnv(name: string): string | undefined {
   if (typeof process === "undefined" || !process.env) return undefined;
   return process.env[name];
@@ -7,8 +12,7 @@ export function getSupabaseUrl(): string {
   const publicUrl = readEnv("NEXT_PUBLIC_SUPABASE_URL");
   const serverUrl = readEnv("SUPABASE_URL");
   const url = typeof window === "undefined" ? publicUrl ?? serverUrl : publicUrl;
-  if (!url) throw new Error("URL Supabase manquante");
-  return url;
+  return url ?? getPublicSupabaseUrl();
 }
 
 export function getSupabaseAnonKey(): string {
@@ -19,8 +23,7 @@ export function getSupabaseAnonKey(): string {
     typeof window === "undefined"
       ? publicAnon ?? publicPublishable ?? serverPublishable
       : publicAnon ?? publicPublishable;
-  if (!key) throw new Error("Clé anon Supabase manquante");
-  return key;
+  return key ?? getPublicSupabaseAnonKey();
 }
 
 export function getSupabaseServiceRoleKey(): string {

@@ -15,18 +15,18 @@ export function HomePageContent() {
   const features = [
     {
       icon: Sparkles,
-      title: t.home.feature1Title,
-      text: t.home.feature1Text,
+      title: t("home.feature1Title"),
+      text: t("home.feature1Text"),
     },
     {
       icon: MapPin,
-      title: t.home.feature2Title,
-      text: t.home.feature2Text,
+      title: t("home.feature2Title"),
+      text: t("home.feature2Text"),
     },
     {
       icon: Shield,
-      title: t.home.feature3Title,
-      text: t.home.feature3Text,
+      title: t("home.feature3Title"),
+      text: t("home.feature3Text"),
     },
   ];
 
@@ -37,23 +37,23 @@ export function HomePageContent() {
         <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/5 px-3 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
             <Sparkles className="h-3.5 w-3.5" />
-            {t.home.badge}
+            {t("home.badge")}
           </p>
           <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-6xl">
-            {t.home.title}{" "}
+            {t("home.title")}{" "}
             <span className="text-amber-500 dark:text-amber-400">
-              {t.home.titleHighlight}
+              {t("home.titleHighlight")}
             </span>
           </h1>
           <p className="mt-6 max-w-xl text-lg text-zinc-600 dark:text-zinc-400">
-            {t.home.subtitle}
+            {t("home.subtitle")}
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
             <Link href="#chat" className={ctaPrimary}>
-              {t.home.ctaAi}
+              {t("home.ctaAi")}
             </Link>
             <Link href="/pro/inscription" className={ctaOutline}>
-              {t.home.ctaPro}
+              {t("home.ctaPro")}
             </Link>
           </div>
         </div>
@@ -63,13 +63,13 @@ export function HomePageContent() {
         <div className="grid gap-12 lg:grid-cols-2 lg:items-start">
           <div>
             <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-              {t.home.chatTitle}
+              {t("home.sectionTitle")}
             </h2>
             <p className="mt-2 text-zinc-600 dark:text-zinc-500">
-              {t.home.chatSubtitle}
+              {t("home.sectionSubtitle")}
             </p>
             <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-              {t.home.chatSoon}
+              {t("home.chatSoon")}
             </div>
           </div>
           <div className="space-y-8 pt-4">

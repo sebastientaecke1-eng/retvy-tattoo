@@ -13,8 +13,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 
 export default function InscriptionClientPage() {
-  const { t } = useAppPreferences();
   const router = useRouter();
+  const { t } = useAppPreferences();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,35 +39,58 @@ export default function InscriptionClientPage() {
     setInfo(null);
     setAccountExists(false);
 
-    const supabase = createClientOrNull();
-    if (!supabase) {
-      setError(getBrowserSupabaseEnvError());
-      setLoading(false);
-      return;
-    }
-    const { data, error: signError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/client/dashboard`,
-        data: { first_name: firstName, last_name: lastName },
-      },
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        role: "client",
+        email,
+        password,
+        firstName,
+        lastName,
+        next: "/client/dashboard",
+      }),
     });
+    const data = (await res.json()) as {
+      error?: string;
+      code?: string;
+      emailSent?: boolean;
+      message?: string;
+    };
 
-    if (signError) {
-      const msg = signError.message;
-      if (/already registered/i.test(msg)) setAccountExists(true);
-      else setError(msg);
+    if (!res.ok) {
+      const msg = data.error ?? "";
+      if (
+        data.code === "already_registered" ||
+        /already registered/i.test(msg)
+      ) {
+        setAccountExists(true);
+      } else {
+        setError(msg || "Inscription échouée");
+      }
       setLoading(false);
       return;
     }
 
-    if (data.session) {
-      router.push("/client/dashboard");
-      router.refresh();
-    } else {
-      setInfo(t.signupClient.success);
+    if (data.emailSent) {
+      setInfo(data.message ?? t("signup.emailConfirm"));
+      setLoading(false);
+      return;
     }
+
+    const supabase = createClientOrNull();
+    if (supabase) {
+      const { data: signInData, error: signInErr } =
+        await supabase.auth.signInWithPassword({ email, password });
+      if (!signInErr && signInData.session) {
+        router.push("/client/dashboard");
+        router.refresh();
+        setLoading(false);
+        return;
+      }
+    }
+
+    setInfo(t("signup.emailConfirm"));
     setLoading(false);
   }
 
@@ -75,15 +98,15 @@ export default function InscriptionClientPage() {
     <div className="mx-auto max-w-md px-4 py-16">
       <Link
         href="/"
-        className="text-sm text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400"
+        className="text-sm text-zinc-600 hover:text-amber-600 dark:text-zinc-500 dark:hover:text-amber-400"
       >
-        {t.signupClient.back}
+        {t("signup.back")}
       </Link>
       <h1 className="mt-6 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-        {t.signupClient.title}
+        {t("signup.title")}
       </h1>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-500">
-        {t.signupClient.subtitle}
+        {t("signup.subtitle")}
       </p>
 
       <Card className="mt-8">
@@ -92,7 +115,7 @@ export default function InscriptionClientPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
-                  {t.signupClient.firstName}
+                  {t("signup.firstName")}
                 </label>
                 <Input
                   value={firstName}
@@ -102,7 +125,7 @@ export default function InscriptionClientPage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
-                  {t.signupClient.lastName}
+                  {t("signup.lastName")}
                 </label>
                 <Input
                   value={lastName}
@@ -113,7 +136,7 @@ export default function InscriptionClientPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
-                {t.signupClient.email}
+                {t("signup.email")}
               </label>
               <Input
                 type="email"
@@ -124,7 +147,7 @@ export default function InscriptionClientPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
-                {t.signupClient.password}
+                {t("signup.password")}
               </label>
               <Input
                 type="password"
@@ -141,10 +164,10 @@ export default function InscriptionClientPage() {
               </p>
             )}
             {accountExists && (
-              <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
-                {t.signupClient.already}{" "}
+              <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+                {t("signup.accountExists")}{" "}
                 <Link href="/connexion" className="underline">
-                  {t.signupClient.signIn}
+                  {t("signup.signIn")}
                 </Link>
               </p>
             )}
@@ -155,14 +178,14 @@ export default function InscriptionClientPage() {
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? t.signupClient.submitting : t.signupClient.submit}
+              {loading ? t("signup.submitting") : t("signup.submit")}
             </Button>
             <p className="text-center text-sm text-zinc-600 dark:text-zinc-500">
               <Link
                 href="/connexion"
                 className="text-amber-600 hover:underline dark:text-amber-400"
               >
-                {t.signupClient.alreadyRegistered}
+                {t("signup.already")}
               </Link>
             </p>
           </form>

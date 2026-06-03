@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
-import {
-  createRouteHandlerClient,
-} from "@/lib/supabase/route-handler";
+import { getAppUrl } from "@/lib/app-url";
+import { createRouteHandlerClient } from "@/lib/supabase/route-handler";
 
 const DEFAULT_NEXT = "/client/dashboard";
 
@@ -22,13 +21,27 @@ function confirmUrl(origin: string, params: Record<string, string>): string {
 }
 
 function resolveOrigin(request: Request): string {
-  const { origin } = new URL(request.url);
+  const appUrl = getAppUrl();
   const forwardedHost = request.headers.get("x-forwarded-host");
   const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
   if (forwardedHost) {
-    return `${forwardedProto}://${forwardedHost}`;
+    const hostOrigin = `${forwardedProto}://${forwardedHost}`;
+    try {
+      const appHost = new URL(appUrl).host;
+      if (forwardedHost === appHost) return appUrl;
+    } catch {
+      /* ignore */
+    }
+    return hostOrigin;
   }
-  return origin;
+  try {
+    const { host } = new URL(request.url);
+    const appHost = new URL(appUrl).host;
+    if (host === appHost) return appUrl;
+  } catch {
+    /* ignore */
+  }
+  return appUrl;
 }
 
 const OTP_TYPES = new Set<string>([
@@ -78,7 +91,10 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const token = requestUrl.searchParams.get("token");
-  const type = parseOtpType(requestUrl.searchParams.get("type"));
+  const typeParam = requestUrl.searchParams.get("type");
+  const type =
+    parseOtpType(typeParam) ??
+    (tokenHash || token ? ("signup" as const) : null);
 
   if (!code && !tokenHash && !token) {
     return NextResponse.redirect(

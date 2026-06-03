@@ -3,7 +3,11 @@
   "name": "retvy-v2",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-06-02",
-  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env",
+    "global_fetch_strictly_public"
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -28,6 +32,8 @@
     "OPENAI_MODEL": "gpt-4o-mini",
     "BREVO_SENDER_EMAIL": "contact@retvy.fr",
     "BREVO_SENDER_NAME": "Retvy",
+    // Définir en prod via : npx wrangler secret put BREVO_API_KEY --env=""
+    "BREVO_API_KEY": "",
 
     "STRIPE_PRICE_ID": "price_1TZdVSA43PhmUn8w9ydG81MO"
   },
@@ -45,6 +51,8 @@
         "OPENAI_MODEL": "gpt-4o-mini",
         "BREVO_SENDER_EMAIL": "contact@retvy.fr",
         "BREVO_SENDER_NAME": "Retvy",
+        // Définir en preview : npx wrangler secret put BREVO_API_KEY --env=preview
+        "BREVO_API_KEY": "",
         "STRIPE_PRICE_ID": "price_1TZdVSA43PhmUn8w9ydG81MO"
       }
     }

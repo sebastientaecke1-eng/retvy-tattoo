@@ -42,6 +42,7 @@ export function OnboardingWizard() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [slugState, setSlugState] = useState<SlugState>("idle");
   const [envError, setEnvError] = useState<string | null>(null);
+  const [emailPending, setEmailPending] = useState(false);
   /** Session établie à l'étape Compte (cookies Supabase + repli mémoire). */
   const [authSession, setAuthSession] = useState<Session | null>(null);
 
@@ -111,6 +112,16 @@ export function OnboardingWizard() {
     }
   }, [searchParams]);
 
+  function isAlreadyRegistered(message: string): boolean {
+    const m = message.toLowerCase();
+    return (
+      m.includes("already") ||
+      m.includes("registered") ||
+      m.includes("exists") ||
+      m.includes("duplicate")
+    );
+  }
+
   function toggleStyle(style: string) {
     setStyles((prev) =>
       prev.includes(style) ? prev.filter((s) => s !== style) : [...prev, style],
@@ -170,33 +181,46 @@ export function OnboardingWizard() {
       }
     }
 
-    const { data: signData, error: signErr } = await supabase.auth.signUp({
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+      window.location.origin;
+    const emailRedirectTo = `${appUrl}/api/auth/callback?next=${encodeURIComponent("/pro/inscription")}`;
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/pro/inscription`,
-        data: { first_name: firstName, last_name: lastName },
+        emailRedirectTo,
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          role: "pro",
+          ...(phone ? { phone } : {}),
+        },
       },
     });
 
-    if (signErr) {
-      const msg = signErr.message.toLowerCase();
-      if (
-        msg.includes("already") ||
-        msg.includes("registered") ||
-        msg.includes("exists")
-      ) {
+    if (error) {
+      if (isAlreadyRegistered(error.message)) {
+        setEmailPending(false);
         return signInWithPassword();
       }
-      throw signErr;
+      throw new Error(error.message);
     }
 
-    if (signData.session) {
-      rememberSession(signData.session);
-      return signData.session;
+    if (data.user?.identities?.length === 0) {
+      setEmailPending(false);
+      return signInWithPassword();
     }
 
-    return signInWithPassword();
+    if (!data.session) {
+      setEmailPending(true);
+      return null;
+    }
+
+    rememberSession(data.session);
+    setEmailPending(false);
+    return data.session;
   }
 
   /** À l'étape Slug : réutilise la session ou reconnecte avec email/mot de passe. */
@@ -433,6 +457,12 @@ export function OnboardingWizard() {
             {envError}
           </p>
         )}
+        {emailPending && (
+          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+            Un email de confirmation vous a été envoyé par Supabase. Validez-le
+            avant l&apos;étape finale (création du profil).
+          </p>
+        )}
         {error && (
           <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
             {error}
@@ -551,7 +581,7 @@ export function OnboardingWizard() {
               <div className="flex gap-3">
                 <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-400" />
                 <p className="text-sm text-zinc-300 leading-relaxed">
-                  <strong className="text-zinc-100">Aucun débit pendant 2 mois.</strong>{" "}
+                  <strong className="text-zinc-100">Aucun débit pendant 30 jours.</strong>{" "}
                   Carte enregistrée pour l&apos;abonnement pro Retvy après la période
                   d&apos;essai. Annulation en 1 clic.
                 </p>
@@ -561,7 +591,7 @@ export function OnboardingWizard() {
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Enregistrer ma carte (essai 60 jours)"
+                "Enregistrer ma carte (essai 30 jours)"
               )}
             </Button>
             <Button

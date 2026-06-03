@@ -31,8 +31,14 @@ export default async function ProDashboardLayout({
         </p>
         <nav className="mt-8 flex flex-col gap-2 text-sm">
           <Link
+            href="/parametres"
+            className="rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-500 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+          >
+            Paramètres
+          </Link>
+          <Link
             href="/pro/dashboard"
-            className="rounded-lg bg-zinc-900 px-3 py-2 text-zinc-200"
+            className="rounded-lg bg-zinc-100 px-3 py-2 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-200"
           >
             Vue d&apos;ensemble
           </Link>

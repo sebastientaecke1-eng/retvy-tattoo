@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  sendBookingNotificationPro,
+  sendBookingRecapClient,
+} from "@/lib/brevo-booking";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -81,6 +85,62 @@ export async function POST(request: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+        const meta = session.metadata ?? {};
+
+        if (session.mode === "payment" && meta.kind === "deposit") {
+          const depositEur = Number(meta.deposit_eur ?? 0);
+          const reference =
+            meta.reference || session.id.slice(-8).toUpperCase();
+          let studioAddress = meta.artist_studio ?? "";
+
+          const { data: pro } = await admin
+            .from("pro_profiles")
+            .select("user_id, address, studio")
+            .eq("slug", meta.artist_slug ?? "")
+            .maybeSingle();
+
+          if (pro?.address) {
+            studioAddress = pro.studio
+              ? `${pro.studio} — ${pro.address}`
+              : pro.address;
+          }
+
+          const bookingPayload = {
+            clientEmail: meta.client_email ?? "",
+            clientName: meta.client_name,
+            clientPhone: meta.client_phone,
+            artistName: meta.artist_name,
+            studioAddress,
+            date: meta.slot_date,
+            time: meta.slot_time,
+            projectSummary: meta.project_summary,
+            deposit: depositEur,
+            reference,
+          };
+
+          if (bookingPayload.clientEmail && process.env.BREVO_API_KEY) {
+            await sendBookingRecapClient(bookingPayload).catch((err) =>
+              console.error("[stripe/webhook] email client", err),
+            );
+          }
+
+          let proEmail: string | null = null;
+          if (pro?.user_id) {
+            const { data: proUser } = await admin.auth.admin.getUserById(
+              pro.user_id,
+            );
+            proEmail = proUser.user?.email ?? null;
+          }
+          if (proEmail && process.env.BREVO_API_KEY) {
+            await sendBookingNotificationPro({
+              ...bookingPayload,
+              proEmail,
+            }).catch((err) =>
+              console.error("[stripe/webhook] email pro", err),
+            );
+          }
+        }
+
         if (session.mode === "subscription") {
           const subId =
             typeof session.subscription === "string"
