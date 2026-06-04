@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { profilePatchSchema } from "@/lib/pro/profile-patch-schema";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureProRole } from "@/lib/supabase/ensure-pro-role";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
@@ -15,6 +16,76 @@ const bodySchema = z.object({
   styles: z.array(z.string().min(1).max(60)).min(1).max(20),
   slug: z.string().regex(/^[a-z0-9]{3,32}$/),
 });
+
+export async function GET(request: Request) {
+  const user = await resolveRequestUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
+
+  const admin = createAdminClient();
+  const { data: profile, error } = await admin
+    .from("pro_profiles")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const { data: portfolio } = await admin
+    .from("pro_portfolio")
+    .select("id, style, image_url, position, created_at")
+    .eq("user_id", user.id)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  return NextResponse.json({ profile, portfolio: portfolio ?? [] });
+}
+
+export async function PATCH(request: Request) {
+  const user = await resolveRequestUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
+
+  let body: z.infer<typeof profilePatchSchema>;
+  try {
+    body = profilePatchSchema.parse(await request.json());
+  } catch (e) {
+    const msg = e instanceof z.ZodError ? e.issues[0]?.message : "Données invalides";
+    return NextResponse.json({ error: msg ?? "Données invalides" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("pro_profiles")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!existing) {
+    return NextResponse.json({ error: "Profil pro introuvable" }, { status: 404 });
+  }
+
+  const { data: row, error } = await admin
+    .from("pro_profiles")
+    .update({
+      ...body,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", user.id)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("[api/pro/profile] PATCH", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, profile: row });
+}
 
 export async function POST(request: Request) {
   const user = await resolveRequestUser(request);

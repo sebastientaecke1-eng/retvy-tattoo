@@ -1,3 +1,4 @@
 -- Schéma Retvy v2 : exécuter 002_user_roles.sql dans le SQL Editor Supabase
 -- (projet actif : bzjmzjdaqkdemzahvssi — voir .env.local / wrangler.jsonc).
 -- Tables : user_roles (user_id, role), pro_profiles, pro_profiles_public
+-- Vue publique /ink : exécuter aussi 003_ink_public_profiles.sql

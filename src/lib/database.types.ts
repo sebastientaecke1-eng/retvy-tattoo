@@ -43,12 +43,27 @@ export type ProProfileInsert = {
 };
 
 export type ProProfileUpdate = Partial<ProProfileInsert> & {
+  avatar_url?: string | null;
+  cover_url?: string | null;
+  price_min?: number | null;
+  price_max?: number | null;
+  updated_at?: string;
   stripe_connect_account_id?: string | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
   subscription_status?: string | null;
   trial_ends_at?: string | null;
   status?: string;
+};
+
+export type ProPortfolioRow = {
+  id: string;
+  user_id: string;
+  style: string;
+  image_url: string;
+  storage_path: string | null;
+  position: number;
+  created_at: string;
 };
 
 export interface Database {
@@ -76,6 +91,24 @@ export interface Database {
         Update: {
           user_id?: string;
           role?: AppRole;
+        };
+        Relationships: [];
+      };
+      pro_portfolio: {
+        Row: ProPortfolioRow;
+        Insert: {
+          user_id: string;
+          style: string;
+          image_url: string;
+          storage_path?: string | null;
+          position?: number;
+          id?: string;
+          created_at?: string;
+        };
+        Update: {
+          style?: string;
+          image_url?: string;
+          position?: number;
         };
         Relationships: [];
       };

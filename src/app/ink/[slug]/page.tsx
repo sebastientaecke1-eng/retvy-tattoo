@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { fetchPublicProProfileBySlug } from "@/lib/pro/public-profile";
 import { Button } from "@/components/ui/button";
 import { MapPin, Palette } from "lucide-react";
 
@@ -10,16 +10,14 @@ interface PageProps {
 
 export default async function InkProfilePage({ params }: PageProps) {
   const { slug } = await params;
-  const supabase = await createClient();
 
-  const { data: profile } = await supabase
-    .from("pro_profiles_public")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
+  if (slug === "demo") {
+    return <DemoProfile />;
+  }
+
+  const profile = await fetchPublicProProfileBySlug(slug);
 
   if (!profile?.artist_name) {
-    if (slug === "demo") return <DemoProfile />;
     notFound();
   }
 
@@ -58,7 +56,8 @@ export default async function InkProfilePage({ params }: PageProps) {
           )}
           {(profile.price_min != null || profile.price_max != null) && (
             <p className="mt-4 text-sm text-zinc-500">
-              Fourchette : {profile.price_min ?? "—"}€ – {profile.price_max ?? "—"}€
+              Fourchette : {profile.price_min ?? "—"}€ – {profile.price_max ?? "—"}
+              €
             </p>
           )}
           <div className="mt-10">
@@ -84,8 +83,8 @@ function DemoProfile() {
       <h1 className="text-3xl font-bold">Alex Ink</h1>
       <p className="mt-1 text-zinc-400">Black Gold Tattoo · Lyon</p>
       <p className="mt-6 text-zinc-300">
-        Spécialiste japonais et blackwork — page exemple avant publication d&apos;un
-        vrai profil.
+        Spécialiste japonais et blackwork — page exemple avant publication
+        d&apos;un vrai profil.
       </p>
     </div>
   );

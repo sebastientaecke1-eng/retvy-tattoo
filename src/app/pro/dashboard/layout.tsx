@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { userHasProAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { ProDashboardNav } from "@/components/pro/pro-dashboard-nav";
 
 export default async function ProDashboardLayout({
   children,
@@ -36,35 +36,7 @@ export default async function ProDashboardLayout({
         <p className="mt-2 font-medium text-zinc-100">
           {profile?.artist_name ?? "Mon studio"}
         </p>
-        <nav className="mt-8 flex flex-col gap-2 text-sm">
-          <Link
-            href="/parametres"
-            className="rounded-lg px-3 py-2 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-500 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
-          >
-            Paramètres
-          </Link>
-          <Link
-            href="/pro/dashboard"
-            className="rounded-lg bg-zinc-100 px-3 py-2 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-200"
-          >
-            Vue d&apos;ensemble
-          </Link>
-          <Link
-            href="/pro/inscription"
-            className="rounded-lg px-3 py-2 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
-          >
-            Compléter le profil
-          </Link>
-          {profile?.slug && (
-            <Link
-              href={`/ink/${profile.slug}`}
-              className="rounded-lg px-3 py-2 text-zinc-500 hover:text-amber-400"
-              target="_blank"
-            >
-              Profil public ↗
-            </Link>
-          )}
-        </nav>
+        <ProDashboardNav slug={profile?.slug} />
         <div className="mt-auto pt-8">
           <SignOutButton />
         </div>
