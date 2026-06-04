@@ -1,39 +1,147 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Settings } from "lucide-react";
+import { fetchDashboardPath } from "@/lib/auth";
 import { createClientOrNull } from "@/lib/supabase/client";
+import { SignOutButton } from "@/components/auth/sign-out-button";
+import {
+  clearOnboardingStoredSession,
+  isStripeOnboardingReturnUrl,
+  restoreSessionFromOnboardingStorage,
+} from "@/lib/supabase/onboarding-session";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 
 export function Header() {
   const { t, theme } = useAppPreferences();
+  const [authReady, setAuthReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [dashboardPath, setDashboardPath] = useState<
+    "/pro/dashboard" | "/client/dashboard" | null
+  >(null);
+
+  const applyLoggedOut = useCallback(() => {
+    setIsLoggedIn(false);
+    setDashboardPath(null);
+    setAuthReady(true);
+  }, []);
+
+  const refreshAuthUi = useCallback(async () => {
+    const supabase = createClientOrNull();
+    if (!supabase) {
+      applyLoggedOut();
+      return;
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      applyLoggedOut();
+      return;
+    }
+
+    setIsLoggedIn(true);
+    const path = await fetchDashboardPath();
+    setDashboardPath(path ?? "/client/dashboard");
+    setAuthReady(true);
+  }, [applyLoggedOut]);
 
   useEffect(() => {
     const supabase = createClientOrNull();
-    if (!supabase) return;
+    if (!supabase) {
+      setAuthReady(true);
+      return;
+    }
 
-    const sync = () => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setIsLoggedIn(!!session);
-      });
-    };
-    sync();
+    void (async () => {
+      const {
+        data: { session: cookieSession },
+      } = await supabase.auth.getSession();
+
+      if (cookieSession?.access_token) {
+        await refreshAuthUi();
+        return;
+      }
+
+      if (isStripeOnboardingReturnUrl()) {
+        const restored = await restoreSessionFromOnboardingStorage();
+        if (restored?.access_token) {
+          await refreshAuthUi();
+          return;
+        }
+      }
+
+      applyLoggedOut();
+    })();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(!!session);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        clearOnboardingStoredSession();
+        applyLoggedOut();
+        return;
+      }
+
+      void refreshAuthUi();
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [applyLoggedOut, refreshAuthUi]);
 
   const shell =
     theme === "dark"
       ? "border-zinc-900/80 bg-black/80"
       : "border-zinc-200/80 bg-white/80";
+
+  const showGuestNav = !authReady || !isLoggedIn;
+  const isProUser = dashboardPath === "/pro/dashboard";
+  const dashboardHref =
+    dashboardPath === "/pro/dashboard" || dashboardPath === "/client/dashboard"
+      ? dashboardPath
+      : null;
+
+  const guestLinks = (
+    <>
+      <Link
+        href="/inscription-client"
+        className="inline-flex rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-black shadow-lg shadow-amber-500/20 transition-colors hover:bg-amber-400"
+      >
+        Client
+      </Link>
+      <Link
+        href="/pro/inscription"
+        className="inline-flex rounded-lg border border-amber-500/50 px-3 py-1.5 text-sm text-amber-600 transition-colors hover:bg-amber-500/10 dark:text-amber-400"
+      >
+        Pro
+      </Link>
+    </>
+  );
+
+  const loggedInLinks = (
+    <>
+      {dashboardHref && (
+        <Link
+          href={dashboardHref}
+          className="inline-flex rounded-lg border border-amber-500/50 px-3 py-1.5 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-500/10 dark:text-amber-400"
+        >
+          {isProUser ? "Dashboard pro" : "Mon espace"}
+        </Link>
+      )}
+      <Link
+        href="/parametres"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-amber-600 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-amber-400"
+        aria-label={t("nav.settings")}
+        title={t("nav.settings")}
+      >
+        <Settings className="h-5 w-5" />
+      </Link>
+      <SignOutButton />
+    </>
+  );
 
   return (
     <header
@@ -59,34 +167,7 @@ export function Header() {
           </Link>
         </nav>
         <div className="flex items-center gap-2">
-          {isLoggedIn && (
-            <Link
-              href="/parametres"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-amber-600 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-amber-400"
-              aria-label={t("nav.settings")}
-              title={t("nav.settings")}
-            >
-              <Settings className="h-5 w-5" />
-            </Link>
-          )}
-          <Link
-            href="/connexion"
-            className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-amber-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-amber-400"
-          >
-            {t("nav.login")}
-          </Link>
-          <Link
-            href="/inscription-client"
-            className="hidden rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-black shadow-lg shadow-amber-500/20 transition-colors hover:bg-amber-400 sm:inline-flex"
-          >
-            {t("nav.client")}
-          </Link>
-          <Link
-            href="/pro/inscription"
-            className="hidden rounded-lg border border-amber-500/50 px-3 py-1.5 text-sm text-amber-600 transition-colors hover:bg-amber-500/10 dark:text-amber-400 sm:inline-flex"
-          >
-            {t("nav.pro")}
-          </Link>
+          {showGuestNav ? guestLinks : loggedInLinks}
         </div>
       </div>
     </header>

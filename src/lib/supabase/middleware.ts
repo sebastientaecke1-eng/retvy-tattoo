@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { userHasProAccess } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/database.types";
 import { getSupabaseAnonKey, getSupabaseUrl } from "./env";
 
@@ -40,6 +42,23 @@ export async function updateSession(request: NextRequest) {
     url.pathname = "/connexion";
     url.searchParams.set("next", path);
     return NextResponse.redirect(url);
+  }
+
+  if (user) {
+    const admin = createAdminClient();
+    const hasPro = await userHasProAccess(admin, user.id);
+
+    if (path.startsWith("/pro/dashboard") && !hasPro) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/client/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    if (path.startsWith("/client/dashboard") && hasPro) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/pro/dashboard";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

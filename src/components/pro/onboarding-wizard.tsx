@@ -9,6 +9,11 @@ import {
   getBrowserSupabaseEnvError,
 } from "@/lib/supabase/client";
 import {
+  ONBOARDING_SESSION_KEY,
+  readOnboardingStoredSession,
+  restoreSessionFromOnboardingStorage,
+} from "@/lib/supabase/onboarding-session";
+import {
   getPublicSupabaseAnonKey,
   getPublicSupabaseUrl,
 } from "@/lib/supabase/public-config";
@@ -20,7 +25,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Banknote, Check, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 
 const STEPS = ["Compte", "Infos", "Styles", "Slug", "Abonnement", "Stripe"] as const;
-const ONBOARDING_SESSION_KEY = "retvy:pro-onboarding:session";
 const ONBOARDING_STEP_KEY = "retvy:pro-onboarding:step";
 const ONBOARDING_SLUG_KEY = "retvy:pro-onboarding:slug";
 const MAX_STEP = STEPS.length - 1;
@@ -188,17 +192,10 @@ export function OnboardingWizard() {
     );
   }
 
-  const readStoredSession = useCallback((): StoredSession | null => {
-    try {
-      const raw = sessionStorage.getItem(ONBOARDING_SESSION_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as StoredSession;
-      if (!parsed.access_token || !parsed.refresh_token) return null;
-      return parsed;
-    } catch {
-      return null;
-    }
-  }, []);
+  const readStoredSession = useCallback(
+    (): StoredSession | null => readOnboardingStoredSession(),
+    [],
+  );
 
   const rememberSession = useCallback((session: Session | null) => {
     if (!session) return;
@@ -243,29 +240,13 @@ export function OnboardingWizard() {
     [rememberSession],
   );
 
-  /** Rétablit la session après retour Stripe (cookies souvent perdus sur Workers). */
   const restoreSessionFromStorage = useCallback(async (): Promise<Session | null> => {
-    const supabase = createClientOrNull();
-    if (!supabase) return null;
-
-    const {
-      data: { session: existing },
-    } = await supabase.auth.getSession();
-    if (existing?.access_token) {
-      rememberSession(existing);
-      return existing;
-    }
-
-    const stored = readStoredSession();
-    if (!stored) return null;
-
-    return syncSessionToClient(stored);
-  }, [readStoredSession, syncSessionToClient, rememberSession]);
+    const active = await restoreSessionFromOnboardingStorage();
+    if (active) rememberSession(active);
+    return active;
+  }, [rememberSession]);
 
   useEffect(() => {
-    const supabase = createClientOrNull();
-    if (!supabase) return;
-
     void restoreSessionFromStorage();
   }, [restoreSessionFromStorage]);
 

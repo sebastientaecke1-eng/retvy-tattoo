@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Globe, Moon, Sun } from "lucide-react";
+import { fetchDashboardPath } from "@/lib/auth";
 import { createClientOrNull } from "@/lib/supabase/client";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -19,22 +20,8 @@ export default function ParametresPage() {
   useEffect(() => {
     const supabase = createClientOrNull();
     if (!supabase) return;
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      const [{ data: proRole }, { data: proProfile }] = await Promise.all([
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .eq("role", "pro")
-          .maybeSingle(),
-        supabase
-          .from("pro_profiles")
-          .select("user_id")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-      ]);
-      if (proRole || proProfile) setDashboardPath("/pro/dashboard");
+    void fetchDashboardPath().then((path) => {
+      if (path) setDashboardPath(path);
     });
   }, []);
 

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { userHasProAccess } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
@@ -14,7 +16,12 @@ export default async function ProDashboardLayout({
   } = await supabase.auth.getUser();
   if (!user) redirect("/connexion?next=/pro/dashboard");
 
-  const { data: profile } = await supabase
+  const admin = createAdminClient();
+  if (!(await userHasProAccess(admin, user.id))) {
+    redirect("/client/dashboard");
+  }
+
+  const { data: profile } = await admin
     .from("pro_profiles")
     .select("artist_name, slug, subscription_status, status")
     .eq("user_id", user.id)

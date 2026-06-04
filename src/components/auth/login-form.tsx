@@ -7,7 +7,7 @@ import {
   createClientOrNull,
   getBrowserSupabaseEnvError,
 } from "@/lib/supabase/client";
-import { redirectPathForUser } from "@/lib/auth";
+import { fetchDashboardPath } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -47,10 +47,11 @@ export function LoginForm() {
     }
 
     if (data.user) {
-      const path =
-        next && next.startsWith("/")
-          ? (next as "/pro/dashboard" | "/client/dashboard")
-          : await redirectPathForUser(supabase, data.user.id);
+      let path: "/pro/dashboard" | "/client/dashboard" =
+        (await fetchDashboardPath()) ?? "/client/dashboard";
+      if (next?.startsWith("/pro/dashboard") || next?.startsWith("/client/dashboard")) {
+        path = next as "/pro/dashboard" | "/client/dashboard";
+      }
       router.push(path);
       router.refresh();
     }
