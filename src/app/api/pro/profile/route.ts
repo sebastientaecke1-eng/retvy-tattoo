@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ensureProRole } from "@/lib/supabase/ensure-pro-role";
+import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
 
 const bodySchema = z.object({
   first_name: z.string().min(1).max(80),
@@ -15,29 +16,8 @@ const bodySchema = z.object({
   slug: z.string().regex(/^[a-z0-9]{3,32}$/),
 });
 
-async function resolveUser(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user: cookieUser },
-  } = await supabase.auth.getUser();
-  if (cookieUser) return cookieUser;
-
-  const authHeader = request.headers.get("Authorization");
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : null;
-  if (!token) return null;
-
-  const {
-    data: { user: tokenUser },
-    error,
-  } = await supabase.auth.getUser(token);
-  if (error || !tokenUser) return null;
-  return tokenUser;
-}
-
 export async function POST(request: Request) {
-  const user = await resolveUser(request);
+  const user = await resolveRequestUser(request);
 
   if (!user) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
@@ -77,15 +57,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const { error: roleError } = await admin.from("user_roles").upsert(
-    { user_id: user.id, role: "pro" },
-    { onConflict: "user_id,role" },
-  );
+  const roleResult = await ensureProRole(admin, user.id);
 
-  if (roleError) {
-    console.error("[api/pro/profile] user_roles", roleError);
+  if (!roleResult.ok) {
+    console.error("[api/pro/profile] user_roles", roleResult.code, roleResult.message);
     return NextResponse.json(
-      { error: "Profil créé mais rôle pro non enregistré. Réessayez." },
+      {
+        error: "Profil créé mais rôle pro non enregistré.",
+        detail: roleResult.message,
+      },
       { status: 500 },
     );
   }

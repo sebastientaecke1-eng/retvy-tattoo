@@ -12,20 +12,13 @@ export default async function ProDashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/connexion?next=/pro/dashboard");
 
-  const { data: proRole } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "pro")
-    .maybeSingle();
-
   const { data: profile } = await supabase
     .from("pro_profiles")
     .select("*")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!proRole && !profile) {
+  if (!profile) {
     redirect("/pro/inscription");
   }
 

@@ -1,5 +1,5 @@
 /** Valeurs publiques Supabase — inlinées au build si valides, sinon repli prod. */
-const DEFAULT_SUPABASE_URL = "https://xtwgjpjovkctfkymxzda.supabase.co";
+const DEFAULT_SUPABASE_URL = "https://bzjmzjdaqkdemzahvssi.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY =
   "sb_publishable_-i4pyt7dPuVwvkMTCukpNg_xvuUS_hG";
 

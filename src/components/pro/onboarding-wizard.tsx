@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import {
   createClientOrNull,
   getBrowserSupabaseEnvError,
 } from "@/lib/supabase/client";
+import {
+  getPublicSupabaseAnonKey,
+  getPublicSupabaseUrl,
+} from "@/lib/supabase/public-config";
 import { CITIES, TATTOO_STYLES } from "@/lib/types";
 import { slugify } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,6 +21,28 @@ import { Banknote, Check, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 
 const STEPS = ["Compte", "Infos", "Styles", "Slug", "Abonnement", "Stripe"] as const;
 const ONBOARDING_SESSION_KEY = "retvy:pro-onboarding:session";
+const ONBOARDING_STEP_KEY = "retvy:pro-onboarding:step";
+const ONBOARDING_SLUG_KEY = "retvy:pro-onboarding:slug";
+const MAX_STEP = STEPS.length - 1;
+const SLUG_PATTERN = /^[a-z0-9]{3,32}$/;
+
+function readStoredSlug(): string {
+  try {
+    return sessionStorage.getItem(ONBOARDING_SLUG_KEY)?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function rememberSlug(value: string) {
+  try {
+    if (SLUG_PATTERN.test(value)) {
+      sessionStorage.setItem(ONBOARDING_SLUG_KEY, value);
+    }
+  } catch {
+    /* ignore */
+  }
+}
 type SlugState = "idle" | "checking" | "available" | "taken" | "invalid";
 
 type StoredSession = {
@@ -30,7 +56,6 @@ type EstablishSessionResult = {
 };
 
 export function OnboardingWizard() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -54,6 +79,7 @@ export function OnboardingWizard() {
   const [slugState, setSlugState] = useState<SlugState>("idle");
   const [envError, setEnvError] = useState<string | null>(null);
   const [emailPending, setEmailPending] = useState(false);
+  const [abonnementNeedsReconnect, setAbonnementNeedsReconnect] = useState(false);
   /** Session établie à l'étape Compte (cookies Supabase + repli mémoire). */
   const [authSession, setAuthSession] = useState<Session | null>(null);
   /** Ref stable pour requireSession (évite perte entre étapes). */
@@ -61,7 +87,30 @@ export function OnboardingWizard() {
 
   useEffect(() => {
     setEnvError(getBrowserSupabaseEnvError());
+    const storedSlug = readStoredSlug();
+    if (storedSlug) setSlug(storedSlug);
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(ONBOARDING_STEP_KEY);
+      if (raw == null) return;
+      const n = Number.parseInt(raw, 10);
+      if (Number.isFinite(n) && n >= 0 && n <= MAX_STEP) {
+        setStep(n);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(ONBOARDING_STEP_KEY, String(step));
+    } catch {
+      /* ignore */
+    }
+  }, [step]);
 
   const checkSlug = useCallback(async (value: string) => {
     if (!/^[a-z0-9]{3,32}$/.test(value)) {
@@ -81,39 +130,45 @@ export function OnboardingWizard() {
   }, [slug, step, checkSlug]);
 
   useEffect(() => {
-    const sub = searchParams.get("sub");
-    const sessionId = searchParams.get("session_id");
-    const connect = searchParams.get("connect");
+    if (slugState === "available" && SLUG_PATTERN.test(slug.trim())) {
+      rememberSlug(slug.trim());
+    }
+  }, [slug, slugState]);
 
-    if (sub === "ok" && sessionId) {
-      (async () => {
-        setLoading(true);
-        try {
-          const res = await fetch("/api/stripe/checkout/confirm", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sessionId }),
-          });
-          if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error ?? "Confirmation échouée");
-          }
-          setStep(5);
-          window.history.replaceState({}, "", "/pro/inscription");
-        } catch (e) {
-          setError(e instanceof Error ? e.message : "Erreur");
-        } finally {
-          setLoading(false);
-        }
-      })();
-    } else if (sub === "ok") {
-      setStep(5);
+  useEffect(() => {
+    if (!done) return;
+    const current = (slug.trim() || readStoredSlug()).trim();
+    if (SLUG_PATTERN.test(current)) return;
+
+    const supabase = createClientOrNull();
+    if (!supabase) return;
+
+    void supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("pro_profiles")
+        .select("slug")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data?.slug && SLUG_PATTERN.test(data.slug)) {
+        setSlug(data.slug);
+        rememberSlug(data.slug);
+      }
+    });
+  }, [done, slug]);
+
+  useEffect(() => {
+    const stepParam = searchParams.get("step");
+    if (stepParam != null) {
+      const n = Number.parseInt(stepParam, 10);
+      if (Number.isFinite(n) && n >= 0 && n <= MAX_STEP) {
+        setStep(n);
+      }
     }
 
-    if (connect === "done") {
-      setStep(5);
-      setDone(true);
-      window.history.replaceState({}, "", "/pro/inscription");
+    if (searchParams.get("sub") === "error") {
+      setError("La confirmation du paiement a échoué. Réessayez l'abonnement.");
+      setStep(4);
     }
   }, [searchParams]);
 
@@ -188,23 +243,89 @@ export function OnboardingWizard() {
     [rememberSession],
   );
 
+  /** Rétablit la session après retour Stripe (cookies souvent perdus sur Workers). */
+  const restoreSessionFromStorage = useCallback(async (): Promise<Session | null> => {
+    const supabase = createClientOrNull();
+    if (!supabase) return null;
+
+    const {
+      data: { session: existing },
+    } = await supabase.auth.getSession();
+    if (existing?.access_token) {
+      rememberSession(existing);
+      return existing;
+    }
+
+    const stored = readStoredSession();
+    if (!stored) return null;
+
+    return syncSessionToClient(stored);
+  }, [readStoredSession, syncSessionToClient, rememberSession]);
+
   useEffect(() => {
     const supabase = createClientOrNull();
     if (!supabase) return;
 
-    void (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        rememberSession(session);
-        return;
-      }
+    void restoreSessionFromStorage();
+  }, [restoreSessionFromStorage]);
 
-      const stored = readStoredSession();
-      if (stored) {
-        await syncSessionToClient(stored);
+  useEffect(() => {
+    const sub = searchParams.get("sub");
+    const sessionId = searchParams.get("session_id");
+    const connect = searchParams.get("connect");
+
+    if (sub !== "ok" && connect !== "done") return;
+
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      setAbonnementNeedsReconnect(false);
+
+      try {
+        const session = await restoreSessionFromStorage();
+        if (!session) {
+          setAbonnementNeedsReconnect(true);
+          setError(
+            "Session expirée après le paiement. Reconnectez-vous avec le même email (étape Compte) pour accéder au dashboard.",
+          );
+          if (sub === "ok") setStep(4);
+          return;
+        }
+
+        if (sub === "ok" && sessionId) {
+          const res = await fetch("/api/stripe/checkout/confirm", {
+            method: "POST",
+            headers: apiAuthHeaders(session),
+            credentials: "include",
+            body: JSON.stringify({ sessionId }),
+            signal: AbortSignal.timeout(25_000),
+          });
+          if (!res.ok) {
+            const data = (await res.json()) as { error?: string };
+            throw new Error(data.error ?? "Confirmation échouée");
+          }
+        }
+
+        const storedSlug = readStoredSlug();
+        if (storedSlug) setSlug(storedSlug);
+
+        if (sub === "ok") {
+          setStep(5);
+          setDone(true);
+          window.history.replaceState({}, "", "/pro/inscription?step=5&sub=ok");
+        } else if (connect === "done") {
+          setStep(5);
+          setDone(true);
+          window.history.replaceState({}, "", "/pro/inscription?step=5");
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erreur");
+        if (sub === "ok") setStep(4);
+      } finally {
+        setLoading(false);
       }
     })();
-  }, [rememberSession, readStoredSession, syncSessionToClient]);
+  }, [searchParams, restoreSessionFromStorage]);
 
   async function signInWithPassword() {
     const supabase = createClientOrNull();
@@ -341,14 +462,20 @@ export function OnboardingWizard() {
     );
   }
 
-  async function createProfile(session: Session) {
+  function apiAuthHeaders(session?: Session | null): HeadersInit {
     const headers: HeadersInit = { "Content-Type": "application/json" };
-    if (session.access_token) {
-      headers.Authorization = `Bearer ${session.access_token}`;
+    const token =
+      session?.access_token ?? authSessionRef.current?.access_token;
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
+    return headers;
+  }
+
+  async function createProfile(session: Session) {
     const res = await fetch("/api/pro/profile", {
       method: "POST",
-      headers,
+      headers: apiAuthHeaders(session),
       credentials: "include",
       body: JSON.stringify({
         first_name: firstName,
@@ -362,25 +489,69 @@ export function OnboardingWizard() {
         slug,
       }),
     });
-    const data = await res.json();
+    const data = (await res.json()) as { error?: string; slug?: string };
     if (!res.ok) throw new Error(data.error ?? "Erreur profil");
+    const savedSlug = (data.slug ?? slug).trim();
+    if (savedSlug) {
+      setSlug(savedSlug);
+      rememberSlug(savedSlug);
+    }
   }
 
   async function startCheckout() {
     setLoading(true);
     setError(null);
+    setAbonnementNeedsReconnect(false);
+
+    const supabase = createClientOrNull();
+    if (!supabase) {
+      setError(
+        getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
+      );
+      setLoading(false);
+      return;
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      setAbonnementNeedsReconnect(true);
+      setLoading(false);
+      return;
+    }
+
+    rememberSession(session);
+
+    const checkoutEmail = email.trim() || session.user.email || "";
+    const checkoutName =
+      `${firstName} ${lastName}`.trim() || artistName.trim() || "Pro Retvy";
+
+    const supabaseFunctionsBase = getPublicSupabaseUrl().replace(/\/$/, "");
+    const checkoutUrl = `${supabaseFunctionsBase}/functions/v1/stripe-checkout`;
+
     try {
-      const res = await fetch("/api/stripe/checkout", {
+      const res = await fetch(checkoutUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...apiAuthHeaders(session),
+          apikey: getPublicSupabaseAnonKey(),
+        },
         body: JSON.stringify({
-          email,
-          name: `${firstName} ${lastName}`.trim() || artistName,
+          email: checkoutEmail,
+          name: checkoutName,
+          userId: session.user.id,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur Stripe");
-      if (data.url) window.location.href = data.url;
+      const data = (await res.json()) as { error?: string; url?: string };
+      if (!res.ok) {
+        throw new Error(data.error ?? "Erreur Stripe");
+      }
+      if (!data.url) {
+        throw new Error("Stripe n'a pas renvoyé d'URL de paiement.");
+      }
+      window.location.href = data.url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
       setLoading(false);
@@ -390,15 +561,52 @@ export function OnboardingWizard() {
   async function connectStripe() {
     setLoading(true);
     setError(null);
+
+    const supabase = createClientOrNull();
+    if (!supabase) {
+      setError(
+        getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
+      );
+      setLoading(false);
+      return;
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      setError(
+        "Session expirée. Retournez à l'étape Compte pour vous reconnecter.",
+      );
+      setLoading(false);
+      return;
+    }
+
+    rememberSession(session);
+
     try {
-      const res = await fetch("/api/stripe/connect", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur Stripe");
-      if (data.url) window.location.href = data.url;
+      const res = await fetch("/api/stripe/connect", {
+        method: "POST",
+        headers: apiAuthHeaders(session),
+        credentials: "include",
+      });
+      const data = (await res.json()) as { error?: string; url?: string };
+      if (!res.ok) {
+        throw new Error(data.error ?? "Erreur Stripe Connect");
+      }
+      if (!data.url) {
+        throw new Error("Stripe n'a pas renvoyé d'URL Connect.");
+      }
+      window.location.href = data.url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
       setLoading(false);
     }
+  }
+
+  function goToProDashboard() {
+    window.location.href = "/pro/dashboard";
   }
 
   async function finalize() {
@@ -410,16 +618,18 @@ export function OnboardingWizard() {
           getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
         );
       }
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from("pro_profiles")
-          .update({ status: "active" })
-          .eq("user_id", user.id);
-      }
+      const session = await requireSession();
+      await supabase
+        .from("pro_profiles")
+        .update({ status: "active" })
+        .eq("user_id", session.user.id);
+      rememberSlug(slug.trim() || readStoredSlug());
       setDone(true);
+      try {
+        sessionStorage.removeItem(ONBOARDING_STEP_KEY);
+      } catch {
+        /* ignore */
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -492,17 +702,24 @@ export function OnboardingWizard() {
           throw new Error("Session invalide. Reconnectez-vous à l'étape Compte.");
         }
         await createProfile(session);
-        router.refresh();
+        setError(null);
+        setAbonnementNeedsReconnect(false);
         setStep(4);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur");
       } finally {
         setLoading(false);
       }
+      return;
     }
   }
 
   if (done) {
+    const profileSlug = (slug.trim() || readStoredSlug()).trim();
+    const profilePath = SLUG_PATTERN.test(profileSlug)
+      ? `/ink/${profileSlug}`
+      : null;
+
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -511,17 +728,25 @@ export function OnboardingWizard() {
           </div>
           <h2 className="mt-6 text-2xl font-bold">Bienvenue sur Retvy !</h2>
           <p className="mt-2 text-zinc-500">
-            Votre profil{" "}
-            <span className="text-amber-400">/ink/{slug}</span> est prêt.
+            {profilePath ? (
+              <>
+                Votre profil{" "}
+                <span className="text-amber-400">{profilePath}</span> est prêt.
+              </>
+            ) : (
+              "Votre espace pro est prêt."
+            )}
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link
-              href={`/ink/${slug}`}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/50 px-5 py-2.5 text-sm text-amber-400 transition-colors hover:bg-amber-500/10"
-            >
-              Voir mon profil
-            </Link>
-            <Button onClick={() => router.push("/pro/dashboard")}>
+            {profilePath ? (
+              <Link
+                href={profilePath}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/50 px-5 py-2.5 text-sm text-amber-400 transition-colors hover:bg-amber-500/10"
+              >
+                Voir mon profil
+              </Link>
+            ) : null}
+            <Button type="button" onClick={goToProDashboard}>
               Dashboard
             </Button>
           </div>
@@ -683,6 +908,26 @@ export function OnboardingWizard() {
 
         {step === 4 && (
           <div className="space-y-4">
+            {abonnementNeedsReconnect ? (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-4">
+                <p className="text-sm text-amber-200">
+                  Session expirée ou introuvable. Reconnectez-vous avec le même
+                  email et mot de passe pour enregistrer votre carte.
+                </p>
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={() => {
+                    setAbonnementNeedsReconnect(false);
+                    setError(null);
+                    setStep(0);
+                  }}
+                >
+                  Retour à l&apos;étape Compte
+                </Button>
+              </div>
+            ) : (
+              <>
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
               <div className="flex gap-3">
                 <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-400" />
@@ -693,14 +938,23 @@ export function OnboardingWizard() {
                 </p>
               </div>
             </div>
-            <Button onClick={startCheckout} disabled={loading} className="w-full" size="lg">
+            <Button
+              type="button"
+              onClick={() => void startCheckout()}
+              disabled={loading}
+              className="w-full"
+              size="lg"
+            >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 "Enregistrer ma carte (essai 30 jours)"
               )}
             </Button>
+              </>
+            )}
             <Button
+              type="button"
               variant="ghost"
               className="w-full"
               onClick={() => setStep(5)}
@@ -722,7 +976,12 @@ export function OnboardingWizard() {
                     Recevez les acomptes clients directement sur votre compte.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Button onClick={connectStripe} disabled={loading} size="sm">
+                    <Button
+                      type="button"
+                      onClick={() => void connectStripe()}
+                      disabled={loading}
+                      size="sm"
+                    >
                       {loading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
@@ -732,7 +991,13 @@ export function OnboardingWizard() {
                         </>
                       )}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={finalize} disabled={loading}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void finalize()}
+                      disabled={loading}
+                    >
                       Terminer plus tard
                     </Button>
                   </div>
@@ -745,13 +1010,18 @@ export function OnboardingWizard() {
         {step < 4 && (
           <div className="flex justify-between">
             <Button
+              type="button"
               variant="ghost"
               onClick={() => setStep((s) => Math.max(0, s - 1))}
               disabled={step === 0 || loading || !!envError}
             >
               Retour
             </Button>
-            <Button onClick={handleNext} disabled={loading || !!envError}>
+            <Button
+              type="button"
+              onClick={() => void handleNext()}
+              disabled={loading || !!envError}
+            >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : step === 3 ? (

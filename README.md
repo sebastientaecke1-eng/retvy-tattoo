@@ -40,7 +40,7 @@ Ajoutez `OPENAI_API_KEY` dans `.env.local`. Le chat stream via GPT-4o mini et pr
 2. Webhook local : `stripe listen --forward-to localhost:3000/api/stripe/webhook`
 3. Copiez le secret dans `STRIPE_WEBHOOK_SECRET`
 
-Sans webhook, le retour Checkout appelle `/api/stripe/checkout/confirm` automatiquement.
+Checkout abonnement : Edge Function Supabase `stripe-checkout` (pas d’API Worker). Sans webhook, le retour Stripe passe par `GET /api/stripe/checkout/confirm`.
 
 Ouvrir [http://localhost:3000](http://localhost:3000).
 

@@ -21,13 +21,20 @@ export default function ParametresPage() {
     if (!supabase) return;
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      const { data: proRole } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "pro")
-        .maybeSingle();
-      if (proRole) setDashboardPath("/pro/dashboard");
+      const [{ data: proRole }, { data: proProfile }] = await Promise.all([
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "pro")
+          .maybeSingle(),
+        supabase
+          .from("pro_profiles")
+          .select("user_id")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+      if (proRole || proProfile) setDashboardPath("/pro/dashboard");
     });
   }, []);
 

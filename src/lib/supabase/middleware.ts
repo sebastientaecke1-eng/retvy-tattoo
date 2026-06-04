@@ -42,19 +42,5 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && path.startsWith("/pro/dashboard")) {
-    const { data: proRole } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "pro")
-      .maybeSingle();
-    if (!proRole) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/client/dashboard";
-      return NextResponse.redirect(url);
-    }
-  }
-
   return supabaseResponse;
 }

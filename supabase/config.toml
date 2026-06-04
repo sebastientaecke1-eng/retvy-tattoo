@@ -1,0 +1,8 @@
+# Projet actif Retvy — aligné sur NEXT_PUBLIC_SUPABASE_URL
+project_id = "bzjmzjdaqkdemzahvssi"
+
+[api]
+enabled = true
+
+[functions.stripe-checkout]
+verify_jwt = true

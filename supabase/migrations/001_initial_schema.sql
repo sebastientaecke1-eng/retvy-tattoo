@@ -1,3 +1,3 @@
--- La base Retvy est déjà provisionnée dans le projet Supabase xtwgjpjovkctfkymxzda.
--- Voir les migrations dans /Users/taecke/retvy/supabase/migrations/
--- Tables utilisées par retvy-v2 : user_roles, pro_profiles, vue pro_profiles_public
+-- Schéma Retvy v2 : exécuter 002_user_roles.sql dans le SQL Editor Supabase
+-- (projet actif : bzjmzjdaqkdemzahvssi — voir .env.local / wrangler.jsonc).
+-- Tables : user_roles (user_id, role), pro_profiles, pro_profiles_public
