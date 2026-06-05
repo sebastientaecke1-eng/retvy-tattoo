@@ -1,12 +1,24 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { fetchPublicProProfileBySlug } from "@/lib/pro/public-profile";
+import Image from "next/image";
+import { InkPortfolioGallery } from "@/components/ink/ink-portfolio-gallery";
+import { InkStudioSection } from "@/components/ink/ink-studio-section";
+import {
+  fetchPublicPortfolioByUserId,
+  fetchPublicProProfileBySlug,
+  fetchPublicStudioPhotosByUserId,
+  groupPortfolioByStyle,
+  styleLabel,
+} from "@/lib/pro/public-profile";
 import { Button } from "@/components/ui/button";
+import { formatCityPostal } from "@/lib/pro/studio";
 import { MapPin, Palette } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
+
+export const dynamic = "force-dynamic";
 
 export default async function InkProfilePage({ params }: PageProps) {
   const { slug } = await params;
@@ -21,38 +33,70 @@ export default async function InkProfilePage({ params }: PageProps) {
     notFound();
   }
 
+  const portfolioItems = profile.user_id
+    ? await fetchPublicPortfolioByUserId(profile.user_id)
+    : [];
+
+  const portfolioGroups = groupPortfolioByStyle(
+    portfolioItems,
+    profile.styles,
+  );
+
+  const studioPhotos = profile.user_id
+    ? await fetchPublicStudioPhotosByUserId(profile.user_id)
+    : [];
+
+  const cityLine = formatCityPostal(profile.city, profile.postal_code);
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
       <div className="flex flex-col gap-8 md:flex-row">
-        <div className="flex h-48 w-48 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-zinc-900 text-4xl font-bold text-amber-400">
-          {profile.artist_name.charAt(0)}
+        <div className="relative mx-auto h-48 w-48 shrink-0 overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-amber-500/20 to-zinc-900 md:mx-0">
+          {profile.avatar_url ? (
+            <Image
+              key={profile.avatar_url}
+              src={profile.avatar_url}
+              alt={profile.artist_name}
+              fill
+              className="object-cover"
+              sizes="192px"
+              priority
+              unoptimized
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-4xl font-bold text-amber-400">
+              {profile.artist_name.charAt(0)}
+            </div>
+          )}
         </div>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold">{profile.artist_name}</h1>
+        <div className="flex-1 text-center md:text-left">
+          <h1 className="text-3xl font-bold text-zinc-50">
+            {profile.artist_name}
+          </h1>
           {profile.studio && (
             <p className="mt-1 text-lg text-zinc-400">{profile.studio}</p>
           )}
-          {profile.city && (
-            <p className="mt-2 flex items-center gap-2 text-zinc-500">
-              <MapPin className="h-4 w-4 text-amber-400" />
-              {profile.city}
+          {cityLine && (
+            <p className="mt-2 flex items-center justify-center gap-2 text-zinc-500 md:justify-start">
+              <MapPin className="h-4 w-4 shrink-0 text-amber-400" />
+              {cityLine}
             </p>
           )}
-          {profile.bio && (
-            <p className="mt-6 leading-relaxed text-zinc-300">{profile.bio}</p>
-          )}
           {profile.styles && profile.styles.length > 0 && (
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap justify-center gap-2 md:justify-start">
               {profile.styles.map((style) => (
                 <span
                   key={style}
                   className="inline-flex items-center gap-1 rounded-full border border-zinc-700 px-3 py-1 text-sm text-zinc-300"
                 >
                   <Palette className="h-3 w-3 text-amber-500" />
-                  {style}
+                  {styleLabel(style)}
                 </span>
               ))}
             </div>
+          )}
+          {profile.bio && (
+            <p className="mt-6 leading-relaxed text-zinc-300">{profile.bio}</p>
           )}
           {(profile.price_min != null || profile.price_max != null) && (
             <p className="mt-4 text-sm text-zinc-500">
@@ -60,11 +104,22 @@ export default async function InkProfilePage({ params }: PageProps) {
               €
             </p>
           )}
-          <div className="mt-10">
+          <div className="mt-10 flex justify-center md:justify-start">
             <Button size="lg">Demander un devis</Button>
           </div>
         </div>
       </div>
+
+      <InkPortfolioGallery groups={portfolioGroups} />
+
+      <InkStudioSection
+        studio={profile.studio}
+        address={profile.address}
+        city={profile.city}
+        postal_code={profile.postal_code}
+        photos={studioPhotos}
+      />
+
       <p className="mt-12 text-center text-sm text-zinc-600">
         <Link href="/" className="text-amber-400 hover:underline">
           ← Retour à Retvy

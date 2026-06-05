@@ -1,17 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { userHasProAccess } from "@/lib/auth";
-import { ProfileEditForm } from "@/components/pro/profile-edit-form";
+import { DepositSettingsForm } from "@/components/pro/deposit-settings-form";
+import {
+  DEFAULT_DEPOSIT_SETTINGS,
+  parseRulesFromDb,
+  type DepositSettings,
+} from "@/lib/pro/deposit-settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 
-export default async function ProDashboardProfilPage() {
+export default async function ProDashboardAcomptePage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/connexion?next=/pro/dashboard/profil");
+  if (!user) redirect("/connexion?next=/pro/dashboard/acompte");
 
   const admin = createAdminClient();
   if (!(await userHasProAccess(admin, user.id))) {
@@ -20,7 +25,7 @@ export default async function ProDashboardProfilPage() {
 
   const { data: profile } = await admin
     .from("pro_profiles")
-    .select("*")
+    .select("user_id")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -35,26 +40,20 @@ export default async function ProDashboardProfilPage() {
     );
   }
 
-  const [{ data: portfolio }, { data: studioPhotos }] = await Promise.all([
-    admin
-      .from("pro_portfolio")
-      .select("id, style, image_url, position")
-      .eq("user_id", user.id)
-      .order("position", { ascending: true })
-      .order("created_at", { ascending: true }),
-    admin
-      .from("pro_studio_photos")
-      .select("id, image_url")
-      .eq("user_id", user.id)
-      .order("position", { ascending: true })
-      .order("created_at", { ascending: true }),
-  ]);
+  const { data: row } = await admin
+    .from("pro_deposit_settings")
+    .select("deposit_type, cancellation_policy, rules")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  return (
-    <ProfileEditForm
-      initialProfile={profile}
-      initialPortfolio={portfolio ?? []}
-      initialStudioPhotos={studioPhotos ?? []}
-    />
-  );
+  const initial: DepositSettings = row
+    ? {
+        deposit_type: row.deposit_type === "percent" ? "percent" : "fixed",
+        cancellation_policy:
+          row.cancellation_policy as DepositSettings["cancellation_policy"],
+        rules: parseRulesFromDb(row.rules),
+      }
+    : DEFAULT_DEPOSIT_SETTINGS;
+
+  return <DepositSettingsForm initial={initial} />;
 }

@@ -9,6 +9,7 @@ import { createClientOrNull } from "@/lib/supabase/client";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DeleteAccountSection } from "@/components/settings/delete-account-section";
 import type { Locale, Theme } from "@/lib/i18n/translations";
 
 export default function ParametresPage() {
@@ -126,6 +127,8 @@ export default function ParametresPage() {
           </Button>
         </Link>
       </div>
+
+      <DeleteAccountSection />
     </div>
   );
 }

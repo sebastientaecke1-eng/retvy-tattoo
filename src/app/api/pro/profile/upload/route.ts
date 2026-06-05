@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isProStyleId } from "@/lib/pro/styles";
+import { MAX_STUDIO_PHOTOS } from "@/lib/pro/studio";
 import { storagePublicUrl } from "@/lib/pro/storage-public-url";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
 
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
   const kind = form.get("kind");
   const file = form.get("file");
 
-  if (kind !== "avatar" && kind !== "portfolio") {
+  if (kind !== "avatar" && kind !== "portfolio" && kind !== "studio") {
     return NextResponse.json({ error: "Type upload invalide" }, { status: 400 });
   }
 
@@ -50,12 +51,12 @@ export async function POST(request: Request) {
   const buffer = Buffer.from(await file.arrayBuffer());
 
   if (kind === "avatar") {
-    const path = `${user.id}/avatar.${ext}`;
+    const path = `${user.id}/avatar-${Date.now()}.${ext}`;
     const { error: upErr } = await admin.storage
       .from("avatars")
       .upload(path, buffer, {
         contentType: file.type,
-        upsert: true,
+        upsert: false,
       });
 
     if (upErr) {
@@ -64,16 +65,72 @@ export async function POST(request: Request) {
     }
 
     const imageUrl = storagePublicUrl("avatars", path);
-    const { error: dbErr } = await admin
+    const { data: updated, error: dbErr } = await admin
       .from("pro_profiles")
-      .update({ avatar_url: imageUrl })
-      .eq("user_id", user.id);
+      .update({
+        avatar_url: imageUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", user.id)
+      .select("avatar_url")
+      .single();
 
     if (dbErr) {
       return NextResponse.json({ error: dbErr.message }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, url: imageUrl, kind: "avatar" });
+    return NextResponse.json({
+      ok: true,
+      url: updated?.avatar_url ?? imageUrl,
+      kind: "avatar",
+    });
+  }
+
+  if (kind === "studio") {
+    const { count } = await admin
+      .from("pro_studio_photos")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    if ((count ?? 0) >= MAX_STUDIO_PHOTOS) {
+      return NextResponse.json(
+        { error: `Maximum ${MAX_STUDIO_PHOTOS} photos du studio.` },
+        { status: 400 },
+      );
+    }
+
+    const fileId = crypto.randomUUID();
+    const path = `${user.id}/${fileId}.${ext}`;
+    const { error: upErr } = await admin.storage
+      .from("studio-photos")
+      .upload(path, buffer, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (upErr) {
+      console.error("[upload] studio-photos", upErr);
+      return NextResponse.json({ error: upErr.message }, { status: 500 });
+    }
+
+    const imageUrl = storagePublicUrl("studio-photos", path);
+    const { data: row, error: insErr } = await admin
+      .from("pro_studio_photos")
+      .insert({
+        user_id: user.id,
+        image_url: imageUrl,
+        storage_path: path,
+        position: count ?? 0,
+      })
+      .select("id, image_url, position")
+      .single();
+
+    if (insErr) {
+      console.error("[upload] pro_studio_photos", insErr);
+      return NextResponse.json({ error: insErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, item: row, kind: "studio" });
   }
 
   const style = String(form.get("style") ?? "").toLowerCase();

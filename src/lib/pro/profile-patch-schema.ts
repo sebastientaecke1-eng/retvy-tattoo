@@ -13,6 +13,11 @@ export const profilePatchSchema = z
     studio: z.string().max(120).nullable().optional(),
     city: z.string().min(1).max(120).optional(),
     address: z.string().max(240).nullable().optional(),
+    postal_code: z
+      .string()
+      .regex(/^\d{5}$/, "Code postal invalide")
+      .nullable()
+      .optional(),
     phone: z.string().min(1).max(40).optional(),
     bio: z.string().max(4000).nullable().optional(),
     styles: stylesArray.optional(),

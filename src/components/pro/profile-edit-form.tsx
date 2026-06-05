@@ -3,8 +3,14 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Check, Loader2, Trash2, Upload } from "lucide-react";
-import type { ProPortfolioRow, ProProfileRow } from "@/lib/database.types";
+import type {
+  ProPortfolioRow,
+  ProProfileRow,
+  ProStudioPhotoRow,
+} from "@/lib/database.types";
 import { PRO_STYLE_OPTIONS, type ProStyleId } from "@/lib/pro/styles";
+import { MAX_STUDIO_PHOTOS } from "@/lib/pro/studio";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,9 +20,12 @@ type PortfolioItem = Pick<
   "id" | "style" | "image_url" | "position"
 >;
 
+type StudioPhotoItem = Pick<ProStudioPhotoRow, "id" | "image_url">;
+
 type Props = {
   initialProfile: ProProfileRow;
   initialPortfolio: PortfolioItem[];
+  initialStudioPhotos: StudioPhotoItem[];
 };
 
 function normalizeStyles(styles: string[]): ProStyleId[] {
@@ -25,11 +34,18 @@ function normalizeStyles(styles: string[]): ProStyleId[] {
   );
 }
 
-export function ProfileEditForm({ initialProfile, initialPortfolio }: Props) {
+export function ProfileEditForm({
+  initialProfile,
+  initialPortfolio,
+  initialStudioPhotos,
+}: Props) {
   const [artistName, setArtistName] = useState(initialProfile.artist_name);
   const [studio, setStudio] = useState(initialProfile.studio ?? "");
   const [city, setCity] = useState(initialProfile.city);
   const [address, setAddress] = useState(initialProfile.address ?? "");
+  const [postalCode, setPostalCode] = useState(
+    initialProfile.postal_code ?? "",
+  );
   const [phone, setPhone] = useState(initialProfile.phone);
   const [bio, setBio] = useState(initialProfile.bio ?? "");
   const [styles, setStyles] = useState<ProStyleId[]>(
@@ -43,12 +59,15 @@ export function ProfileEditForm({ initialProfile, initialPortfolio }: Props) {
   );
   const [avatarUrl, setAvatarUrl] = useState(initialProfile.avatar_url);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>(initialPortfolio);
+  const [studioPhotos, setStudioPhotos] =
+    useState<StudioPhotoItem[]>(initialStudioPhotos);
 
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [portfolioUploading, setPortfolioUploading] = useState<string | null>(
     null,
   );
+  const [studioUploading, setStudioUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -118,6 +137,51 @@ export function ProfileEditForm({ initialProfile, initialPortfolio }: Props) {
     }
   }
 
+  async function uploadStudioPhoto(file: File) {
+    if (studioPhotos.length >= MAX_STUDIO_PHOTOS) {
+      setError(`Maximum ${MAX_STUDIO_PHOTOS} photos du studio.`);
+      return;
+    }
+    setStudioUploading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.set("kind", "studio");
+      fd.set("file", file);
+      const res = await fetch("/api/pro/profile/upload", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const data = (await res.json()) as {
+        item?: StudioPhotoItem;
+        error?: string;
+      };
+      if (!res.ok || !data.item) {
+        throw new Error(data.error ?? "Échec upload");
+      }
+      setStudioPhotos((prev) => [...prev, data.item!]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur upload");
+    } finally {
+      setStudioUploading(false);
+    }
+  }
+
+  async function removeStudioPhoto(id: string) {
+    setError(null);
+    const res = await fetch(`/api/pro/profile/studio?id=${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      setError(data.error ?? "Suppression impossible");
+      return;
+    }
+    setStudioPhotos((prev) => prev.filter((p) => p.id !== id));
+  }
+
   async function removePortfolio(id: string) {
     setError(null);
     const res = await fetch(`/api/pro/profile/portfolio?id=${id}`, {
@@ -160,6 +224,13 @@ export function ProfileEditForm({ initialProfile, initialPortfolio }: Props) {
       return;
     }
 
+    const postalTrimmed = postalCode.trim();
+    if (postalTrimmed && !/^\d{5}$/.test(postalTrimmed)) {
+      setError("Code postal invalide (5 chiffres).");
+      setSaving(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/pro/profile", {
         method: "PATCH",
@@ -170,6 +241,7 @@ export function ProfileEditForm({ initialProfile, initialPortfolio }: Props) {
           studio: studio.trim() || null,
           city: city.trim(),
           address: address.trim() || null,
+          postal_code: postalTrimmed || null,
           phone: phone.trim(),
           bio: bio.trim() || null,
           styles,
@@ -273,9 +345,6 @@ export function ProfileEditForm({ initialProfile, initialPortfolio }: Props) {
           <Field label="Nom du studio">
             <Input value={studio} onChange={(e) => setStudio(e.target.value)} />
           </Field>
-          <Field label="Ville *">
-            <Input value={city} onChange={(e) => setCity(e.target.value)} required />
-          </Field>
           <Field label="Téléphone *">
             <Input
               value={phone}
@@ -285,7 +354,27 @@ export function ProfileEditForm({ initialProfile, initialPortfolio }: Props) {
             />
           </Field>
           <Field label="Adresse" className="sm:col-span-2">
-            <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+            <AddressAutocomplete
+              value={address}
+              onChange={setAddress}
+              onSelect={({ address: nextAddress, city: nextCity, postalCode: nextPostal }) => {
+                setAddress(nextAddress);
+                setCity(nextCity);
+                setPostalCode(nextPostal);
+              }}
+            />
+          </Field>
+          <Field label="Code postal">
+            <Input
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
+              inputMode="numeric"
+              placeholder="75011"
+              maxLength={5}
+            />
+          </Field>
+          <Field label="Ville *">
+            <Input value={city} onChange={(e) => setCity(e.target.value)} required />
           </Field>
           <Field label="Bio" className="sm:col-span-2">
             <textarea
@@ -296,6 +385,77 @@ export function ProfileEditForm({ initialProfile, initialPortfolio }: Props) {
               placeholder="Présentez votre univers, votre expérience…"
             />
           </Field>
+        </CardContent>
+      </Card>
+
+      <Card className="border-zinc-800 bg-zinc-950/80">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+              Photos du studio
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Jusqu&apos;à {MAX_STUDIO_PHOTOS} photos visibles sur votre page /ink.
+            </p>
+          </div>
+          <label
+            className={
+              studioPhotos.length >= MAX_STUDIO_PHOTOS
+                ? "pointer-events-none inline-flex cursor-not-allowed items-center gap-2 text-sm text-zinc-600"
+                : "inline-flex cursor-pointer items-center gap-2 text-sm text-amber-400 hover:text-amber-300"
+            }
+          >
+            {studioUploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4" />
+            )}
+            Ajouter une photo
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              disabled={
+                studioUploading || studioPhotos.length >= MAX_STUDIO_PHOTOS
+              }
+              onChange={(ev) => {
+                const f = ev.target.files?.[0];
+                if (f) void uploadStudioPhoto(f);
+                ev.target.value = "";
+              }}
+            />
+          </label>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {studioPhotos.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+              {studioPhotos.map((photo) => (
+                <div
+                  key={photo.id}
+                  className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900"
+                >
+                  <Image
+                    src={photo.image_url}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="160px"
+                    unoptimized
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void removeStudioPhoto(photo.id)}
+                    className="absolute right-1 top-1 rounded-md bg-black/70 p-1.5 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100"
+                    aria-label="Supprimer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-600">Aucune photo du studio.</p>
+          )}
         </CardContent>
       </Card>
 

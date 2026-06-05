@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Settings } from "lucide-react";
 import { fetchDashboardPath } from "@/lib/auth";
 import { createClientOrNull } from "@/lib/supabase/client";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -14,7 +13,7 @@ import {
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 
 export function Header() {
-  const { t, theme } = useAppPreferences();
+  const { theme } = useAppPreferences();
   const [authReady, setAuthReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [dashboardPath, setDashboardPath] = useState<
@@ -131,14 +130,6 @@ export function Header() {
           {isProUser ? "Dashboard pro" : "Mon espace"}
         </Link>
       )}
-      <Link
-        href="/parametres"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-amber-600 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-amber-400"
-        aria-label={t("nav.settings")}
-        title={t("nav.settings")}
-      >
-        <Settings className="h-5 w-5" />
-      </Link>
       <SignOutButton />
     </>
   );
@@ -152,20 +143,6 @@ export function Header() {
           <span className="text-amber-500">Ret</span>
           <span className="text-zinc-900 dark:text-zinc-100">vy</span>
         </Link>
-        <nav className="hidden items-center gap-6 text-sm text-zinc-600 dark:text-zinc-400 md:flex">
-          <Link
-            href="/#chat"
-            className="transition-colors hover:text-amber-500 dark:hover:text-amber-400"
-          >
-            {t("nav.qualify")}
-          </Link>
-          <Link
-            href="/ink/demo"
-            className="transition-colors hover:text-amber-500 dark:hover:text-amber-400"
-          >
-            {t("nav.demoProfile")}
-          </Link>
-        </nav>
         <div className="flex items-center gap-2">
           {showGuestNav ? guestLinks : loggedInLinks}
         </div>

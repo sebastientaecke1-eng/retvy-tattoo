@@ -77,6 +77,19 @@ export const translations = {
       saved: "Préférences enregistrées.",
       backDashboard: "Retour au tableau de bord",
       backHome: "Accueil",
+      dangerZone: "Zone de danger",
+      dangerHint:
+        "La suppression de votre compte efface définitivement votre profil et toutes vos données.",
+      deleteAccount: "Supprimer mon compte",
+      deleteModalTitle: "Supprimer définitivement votre compte ?",
+      deleteModalBody:
+        "Cette action est irréversible. Votre compte, profil et toutes vos données seront définitivement supprimés.",
+      deleteConfirmLabel:
+        'Tapez « SUPPRIMER » pour confirmer',
+      deleteCancel: "Annuler",
+      deleteConfirm: "Confirmer la suppression",
+      deleteSubmitting: "Suppression…",
+      deleteError: "Impossible de supprimer le compte. Réessayez ou contactez le support.",
     },
   },
   en: {
@@ -153,6 +166,18 @@ export const translations = {
       saved: "Preferences saved.",
       backDashboard: "Back to dashboard",
       backHome: "Home",
+      dangerZone: "Danger zone",
+      dangerHint:
+        "Deleting your account permanently removes your profile and all associated data.",
+      deleteAccount: "Delete my account",
+      deleteModalTitle: "Permanently delete your account?",
+      deleteModalBody:
+        "This action cannot be undone. Your account, profile, and all your data will be permanently deleted.",
+      deleteConfirmLabel: 'Type "SUPPRIMER" to confirm',
+      deleteCancel: "Cancel",
+      deleteConfirm: "Confirm deletion",
+      deleteSubmitting: "Deleting…",
+      deleteError: "Could not delete your account. Please try again or contact support.",
     },
   },
 } as const;

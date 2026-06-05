@@ -32,6 +32,11 @@ export default async function ProDashboardPage() {
     profile.subscription_status ?? "",
   );
 
+  const { count: bookingCount } = await admin
+    .from("bookings")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
   return (
     <>
       <h1 className="text-2xl font-bold">Dashboard pro</h1>
@@ -55,8 +60,15 @@ export default async function ProDashboardPage() {
             <Calendar className="h-8 w-8 shrink-0 text-amber-400" />
             <div>
               <h2 className="font-medium">Réservations</h2>
-              <p className="mt-1 text-2xl font-bold text-amber-400">0</p>
-              <p className="text-xs text-zinc-500">Module à venir</p>
+              <p className="mt-1 text-2xl font-bold text-amber-400">
+                {bookingCount ?? 0}
+              </p>
+              <Link
+                href="/pro/dashboard/reservations"
+                className="text-xs text-amber-500/80 hover:text-amber-400"
+              >
+                Voir mes RDV →
+              </Link>
             </div>
           </CardContent>
         </Card>
