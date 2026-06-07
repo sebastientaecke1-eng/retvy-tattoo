@@ -17,6 +17,7 @@ export function ProDashboardNav() {
   const onAvailabilities = pathname.startsWith("/pro/dashboard/disponibilites");
   const onDeposit = pathname.startsWith("/pro/dashboard/acompte");
   const onReservations = pathname.startsWith("/pro/dashboard/reservations");
+  const onSketches = pathname.startsWith("/pro/dashboard/croquis");
   const onPersonalLink = pathname.startsWith("/pro/dashboard/lien");
   const onSettings = pathname.startsWith("/parametres");
 
@@ -39,6 +40,9 @@ export function ProDashboardNav() {
         className={navClass(onReservations)}
       >
         Réservations
+      </Link>
+      <Link href="/pro/dashboard/croquis" className={navClass(onSketches)}>
+        Croquis
       </Link>
       <Link href="/pro/dashboard/profil" className={navClass(onProfile)}>
         Mon profil

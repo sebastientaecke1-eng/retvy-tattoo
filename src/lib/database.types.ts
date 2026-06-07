@@ -126,6 +126,26 @@ export type ProDepositSettingsRow = {
   updated_at: string;
 };
 
+export type SketchStatus =
+  | "pending"
+  | "sent"
+  | "approved"
+  | "revision_requested";
+
+export type BookingSketchRow = {
+  id: string;
+  booking_id: string;
+  pro_user_id: string;
+  client_email: string;
+  sketch_url: string | null;
+  storage_path: string | null;
+  status: SketchStatus;
+  client_comment: string | null;
+  validation_token: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type BookingStatus = "pending" | "confirmed" | "cancelled";
 
 export type BookingRow = {
@@ -319,6 +339,32 @@ export interface Database {
           deposit_paid?: boolean;
           status?: BookingStatus;
           cancellation_policy?: CancellationPolicy;
+        };
+        Relationships: [];
+      };
+      bookings_sketches: {
+        Row: BookingSketchRow;
+        Insert: {
+          booking_id: string;
+          pro_user_id: string;
+          client_email: string;
+          validation_token: string;
+          sketch_url?: string | null;
+          storage_path?: string | null;
+          status?: SketchStatus;
+          client_comment?: string | null;
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          client_email?: string;
+          sketch_url?: string | null;
+          storage_path?: string | null;
+          status?: SketchStatus;
+          client_comment?: string | null;
+          validation_token?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
