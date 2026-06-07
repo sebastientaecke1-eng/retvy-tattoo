@@ -105,7 +105,9 @@ export default async function InkProfilePage({ params }: PageProps) {
             </p>
           )}
           <div className="mt-10 flex justify-center md:justify-start">
-            <Button size="lg">Demander un devis</Button>
+            <Link href={`/ink/${slug}/reserver`}>
+              <Button size="lg">Demander un devis</Button>
+            </Link>
           </div>
         </div>
       </div>

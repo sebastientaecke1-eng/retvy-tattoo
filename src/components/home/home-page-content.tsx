@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { MapPin, Shield, Sparkles } from "lucide-react";
+import { AiChat } from "@/components/home/ai-chat";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 
 const ctaPrimary =
@@ -68,8 +69,8 @@ export function HomePageContent() {
             <p className="mt-2 text-zinc-600 dark:text-zinc-500">
               {t("home.sectionSubtitle")}
             </p>
-            <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-              {t("home.chatSoon")}
+            <div id="chat" className="mt-6">
+              <AiChat />
             </div>
           </div>
           <div className="space-y-8 pt-4">

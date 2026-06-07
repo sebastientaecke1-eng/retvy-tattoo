@@ -38,7 +38,7 @@ export default async function ProDashboardLayout({
         <p className="mt-2 font-medium text-zinc-100">
           {profile?.artist_name ?? "Mon studio"}
         </p>
-        <ProDashboardNav slug={profile?.slug} />
+        <ProDashboardNav />
         <div className="mt-auto pt-8">
           <SignOutButton />
         </div>

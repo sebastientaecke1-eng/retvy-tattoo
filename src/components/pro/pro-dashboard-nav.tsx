@@ -10,13 +10,14 @@ function navClass(active: boolean) {
     : "rounded-lg px-3 py-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-zinc-200";
 }
 
-export function ProDashboardNav({ slug }: { slug?: string | null }) {
+export function ProDashboardNav() {
   const pathname = usePathname();
   const onOverview = pathname === "/pro/dashboard";
   const onProfile = pathname.startsWith("/pro/dashboard/profil");
   const onAvailabilities = pathname.startsWith("/pro/dashboard/disponibilites");
   const onDeposit = pathname.startsWith("/pro/dashboard/acompte");
   const onReservations = pathname.startsWith("/pro/dashboard/reservations");
+  const onPersonalLink = pathname.startsWith("/pro/dashboard/lien");
   const onSettings = pathname.startsWith("/parametres");
 
   return (
@@ -42,6 +43,9 @@ export function ProDashboardNav({ slug }: { slug?: string | null }) {
       <Link href="/pro/dashboard/profil" className={navClass(onProfile)}>
         Mon profil
       </Link>
+      <Link href="/pro/dashboard/lien" className={navClass(onPersonalLink)}>
+        Mon lien
+      </Link>
       <Link
         href="/pro/dashboard/disponibilites"
         className={navClass(onAvailabilities)}
@@ -51,15 +55,6 @@ export function ProDashboardNav({ slug }: { slug?: string | null }) {
       <Link href="/pro/dashboard/acompte" className={navClass(onDeposit)}>
         Acomptes
       </Link>
-      {slug && (
-        <Link
-          href={`/ink/${slug}`}
-          className="rounded-lg px-3 py-2 text-zinc-500 hover:text-amber-400"
-          target="_blank"
-        >
-          Profil public ↗
-        </Link>
-      )}
     </nav>
   );
 }

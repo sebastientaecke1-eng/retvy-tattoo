@@ -1,28 +1,37 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { createClientOrNull } from "@/lib/supabase/client";
 import { clearOnboardingStoredSession } from "@/lib/supabase/onboarding-session";
 import { Button } from "@/components/ui/button";
 
 export function SignOutButton() {
-  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const supabase = createClientOrNull();
 
-  async function signOut() {
+  async function handleSignOut() {
+    setLoading(true);
     clearOnboardingStoredSession();
-
-    const supabase = createClientOrNull();
-    if (supabase) {
-      await supabase.auth.signOut();
+    try {
+      if (supabase) {
+        void supabase.auth.signOut();
+      }
+    } catch {
+      // ignore l'erreur
+    } finally {
+      window.location.href = "/";
     }
-
-    router.push("/");
-    router.refresh();
   }
 
   return (
-    <Button variant="ghost" size="sm" onClick={signOut}>
-      Déconnexion
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={() => void handleSignOut()}
+      disabled={loading}
+    >
+      {loading ? "Déconnexion…" : "Déconnexion"}
     </Button>
   );
 }

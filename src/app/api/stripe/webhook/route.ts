@@ -5,6 +5,7 @@ import {
   sendBookingNotificationPro,
   sendBookingRecapClient,
 } from "@/lib/brevo-booking";
+import { combineBookingDateTime } from "@/lib/pro/ink-booking";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -138,6 +139,36 @@ export async function POST(request: Request) {
             }).catch((err) =>
               console.error("[stripe/webhook] email pro", err),
             );
+          }
+
+          if (pro?.user_id && meta.slot_date && meta.slot_time) {
+            const bookingDate = combineBookingDateTime(
+              meta.slot_date,
+              meta.slot_time,
+            );
+            const { error: bookingErr } = await admin.from("bookings").insert({
+              user_id: pro.user_id,
+              client_id: meta.client_user_id || null,
+              client_name: meta.client_name ?? "Client",
+              client_email: meta.client_email ?? null,
+              client_phone: meta.client_phone ?? null,
+              project_description: meta.project_summary ?? null,
+              style: meta.style ?? null,
+              zone: meta.zone ?? null,
+              size: meta.size ?? null,
+              reference_image_url: meta.reference_image_url || null,
+              booking_date: bookingDate,
+              duration_minutes: Number(meta.duration_minutes ?? 60),
+              deposit_amount: depositEur,
+              deposit_paid: true,
+              status: "confirmed",
+              cancellation_policy:
+                (meta.cancellation_policy as "24h" | "48h" | "72h" | "non_refundable") ??
+                "48h",
+            });
+            if (bookingErr) {
+              console.error("[stripe/webhook] booking insert", bookingErr);
+            }
           }
         }
 
