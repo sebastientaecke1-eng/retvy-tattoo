@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { MapPin, Shield, Sparkles } from "lucide-react";
 import { AiChat } from "@/components/home/ai-chat";
+import { SearchBar } from "@/components/home/search-bar";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 
 const ctaPrimary =
@@ -49,6 +50,7 @@ export function HomePageContent() {
           <p className="mt-6 max-w-xl text-lg text-zinc-600 dark:text-zinc-400">
             {t("home.subtitle")}
           </p>
+          <SearchBar />
           <div className="mt-10 flex flex-wrap gap-4">
             <Link href="#chat" className={ctaPrimary}>
               {t("home.ctaAi")}
