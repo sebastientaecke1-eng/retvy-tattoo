@@ -19,8 +19,13 @@ const STYLE_CHIPS = [
 ];
 const SIZE_CHIPS = ["Petit (< 5cm)", "Moyen (5-15cm)", "Grand (> 15cm)"];
 
+const DISTANCE_CHIPS = ["20 km", "50 km", "100 km", "150 km"];
+
 function detectChips(text: string): string[] {
   const t = text.toLowerCase();
+  if (/(kilomètre|kilometre|déplacer|deplacer|rayon)/.test(t)) {
+    return DISTANCE_CHIPS;
+  }
   if (/(style|attire|inspire)/.test(t)) return STYLE_CHIPS;
   if (/(taille|grand|petit|moyen|dimension)/.test(t)) return SIZE_CHIPS;
   return [];
@@ -95,7 +100,7 @@ export function AiChat({ artistSlug }: { artistSlug?: string }) {
     lastAssistant?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ??
     "";
   const chips =
-    lastAssistant && !matchResult && !isLoading ? detectChips(lastText) : [];
+    lastAssistant && !isLoading ? detectChips(lastText) : [];
 
   const visibleMessages = messages.filter(
     (m) =>
@@ -117,7 +122,7 @@ export function AiChat({ artistSlug }: { artistSlug?: string }) {
             <span className="text-sm font-medium text-zinc-200">
               Assistant projet Retvy
             </span>
-            {matchResult && (
+            {matchResult && !matchResult.noArtistsFound && matchResult.artists.length > 0 && (
               <span className="ml-auto text-[10px] uppercase tracking-widest text-amber-400">
                 Match trouvé
               </span>
@@ -179,40 +184,44 @@ export function AiChat({ artistSlug }: { artistSlug?: string }) {
             </div>
           )}
 
-          {!matchResult && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSend(input);
-              }}
-              className="flex gap-2 border-t border-zinc-800 p-4"
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend(input);
+            }}
+            className="flex gap-2 border-t border-zinc-800 p-4"
+          >
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={
+                matchResult
+                  ? "Affinez votre recherche ou posez une question…"
+                  : "Décrivez votre idée de tatouage…"
+              }
+              disabled={isLoading}
+              className="flex-1 rounded-xl border border-zinc-800 bg-black px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 focus:outline-none disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-black transition-transform hover:bg-amber-400 disabled:opacity-30"
+              aria-label="Envoyer"
             >
-              <input
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Décrivez votre idée de tatouage…"
-                disabled={isLoading}
-                className="flex-1 rounded-xl border border-zinc-800 bg-black px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 focus:outline-none disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-black transition-transform hover:bg-amber-400 disabled:opacity-30"
-                aria-label="Envoyer"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ArrowRight className="h-4 w-4" />
-                )}
-              </button>
-            </form>
-          )}
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRight className="h-4 w-4" />
+              )}
+            </button>
+          </form>
         </CardContent>
       </Card>
 
-      {matchResult && <ChatResults result={matchResult} />}
+      {matchResult && (
+        <ChatResults result={matchResult} />
+      )}
     </div>
   );
 }

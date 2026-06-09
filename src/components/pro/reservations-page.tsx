@@ -13,7 +13,7 @@ type Props = {
 export function ReservationsPage({ initialBookings }: Props) {
   const [agendaView, setAgendaView] = useState<AgendaView>("week");
   const [agendaAnchor, setAgendaAnchor] = useState(() => new Date());
-  const [listFilter, setListFilter] = useState<ListFilter>("week");
+  const [listFilter, setListFilter] = useState<ListFilter>("all");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   return (

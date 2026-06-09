@@ -167,6 +167,31 @@ export function PersonalLinkSection({ slug }: PersonalLinkSectionProps) {
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardContent className="space-y-4 pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-zinc-100">
+              Aperçu de votre profil public
+            </h2>
+            <Link href={`/ink/${slug}`} target="_blank" rel="noopener noreferrer">
+              <Button type="button" variant="outline" size="sm">
+                <ExternalLink className="h-4 w-4" />
+                Voir en plein écran
+              </Button>
+            </Link>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-zinc-800">
+            <iframe
+              src={`/ink/${slug}`}
+              title={`Aperçu du profil public — ${slug}`}
+              className="h-[600px] w-full border-0 bg-zinc-950"
+              loading="lazy"
+            />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

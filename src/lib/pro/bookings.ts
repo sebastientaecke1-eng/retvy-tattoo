@@ -1,5 +1,7 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CancellationPolicy } from "@/lib/pro/deposit-settings";
 import { CANCELLATION_OPTIONS } from "@/lib/pro/deposit-settings";
+import type { Database } from "@/lib/database.types";
 import { styleLabel } from "@/lib/pro/public-profile";
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled";
@@ -82,6 +84,16 @@ export function formatBookingTimeCompact(iso: string): string {
   const h = d.getHours();
   const m = d.getMinutes().toString().padStart(2, "0");
   return `${h}h${m}`;
+}
+
+/** Plage horaire : 14h00 → 17h30 (3h30). */
+export function formatBookingTimeRange(
+  iso: string,
+  durationMinutes: number,
+): string {
+  const start = new Date(iso);
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  return `${formatBookingTimeCompact(iso)} → ${formatBookingTimeCompact(end.toISOString())} (${formatDuration(durationMinutes)})`;
 }
 
 export function formatStyleZone(booking: Booking): string {
@@ -257,4 +269,47 @@ export function shiftMonth(anchor: Date, delta: number): Date {
   const d = new Date(anchor);
   d.setMonth(d.getMonth() + delta);
   return d;
+}
+
+/** RDV actifs du pro : pending (acompte en attente) + confirmed. */
+export async function fetchProBookings(
+  admin: SupabaseClient<Database>,
+  proUserId: string,
+): Promise<Booking[]> {
+  const { data, error } = await admin
+    .from("bookings")
+    .select("*")
+    .eq("user_id", proUserId)
+    .in("status", ["pending", "confirmed"])
+    .order("booking_date", { ascending: true });
+
+  if (error) {
+    console.error("[fetchProBookings]", error.message);
+    return [];
+  }
+
+  return (data ?? []) as Booking[];
+}
+
+export function splitBookingDateTime(iso: string): {
+  slot_date: string;
+  slot_time: string;
+} {
+  const parts = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(iso));
+
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+
+  return {
+    slot_date: `${get("year")}-${get("month")}-${get("day")}`,
+    slot_time: `${get("hour")}:${get("minute")}`,
+  };
 }

@@ -6,7 +6,7 @@ import {
   type ListFilter,
   filterBookingsByListPeriod,
   formatBookingDate,
-  formatBookingTime,
+  formatBookingTimeRange,
   formatProjectSummary,
   getBookingStatusMeta,
 } from "@/lib/pro/bookings";
@@ -115,7 +115,10 @@ function BookingListItem({
           </p>
           <p className="mt-1 text-xs text-zinc-600">
             {formatBookingDate(booking.booking_date)} ·{" "}
-            {formatBookingTime(booking.booking_date)}
+            {formatBookingTimeRange(
+              booking.booking_date,
+              booking.duration_minutes,
+            )}
           </p>
         </div>
         <div className="shrink-0 text-right">

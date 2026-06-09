@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  sendBookingNotificationPro,
-  sendBookingRecapClient,
-} from "@/lib/brevo-booking";
-import { combineBookingDateTime } from "@/lib/pro/ink-booking";
+import { fulfillDepositBooking } from "@/lib/pro/persist-booking";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -89,86 +85,32 @@ export async function POST(request: Request) {
         const meta = session.metadata ?? {};
 
         if (session.mode === "payment" && meta.kind === "deposit") {
-          const depositEur = Number(meta.deposit_eur ?? 0);
-          const reference =
-            meta.reference || session.id.slice(-8).toUpperCase();
-          let studioAddress = meta.artist_studio ?? "";
-
-          const { data: pro } = await admin
-            .from("pro_profiles")
-            .select("user_id, address, studio")
-            .eq("slug", meta.artist_slug ?? "")
-            .maybeSingle();
-
-          if (pro?.address) {
-            studioAddress = pro.studio
-              ? `${pro.studio} — ${pro.address}`
-              : pro.address;
-          }
-
-          const bookingPayload = {
-            clientEmail: meta.client_email ?? "",
-            clientName: meta.client_name,
-            clientPhone: meta.client_phone,
-            artistName: meta.artist_name,
-            studioAddress,
-            date: meta.slot_date,
-            time: meta.slot_time,
-            projectSummary: meta.project_summary,
-            deposit: depositEur,
-            reference,
-          };
-
-          if (bookingPayload.clientEmail && process.env.BREVO_API_KEY) {
-            await sendBookingRecapClient(bookingPayload).catch((err) =>
-              console.error("[stripe/webhook] email client", err),
-            );
-          }
-
-          let proEmail: string | null = null;
-          if (pro?.user_id) {
-            const { data: proUser } = await admin.auth.admin.getUserById(
-              pro.user_id,
-            );
-            proEmail = proUser.user?.email ?? null;
-          }
-          if (proEmail && process.env.BREVO_API_KEY) {
-            await sendBookingNotificationPro({
-              ...bookingPayload,
-              proEmail,
+          if (meta.pro_user_id && meta.slot_date && meta.slot_time) {
+            await fulfillDepositBooking({
+              booking_id: meta.booking_id || undefined,
+              pro_user_id: meta.pro_user_id,
+              artist_slug: meta.artist_slug,
+              artist_name: meta.artist_name,
+              artist_studio: meta.artist_studio,
+              slot_date: meta.slot_date,
+              slot_time: meta.slot_time,
+              project_summary: meta.project_summary,
+              style: meta.style,
+              zone: meta.zone,
+              size: meta.size,
+              duration_minutes: meta.duration_minutes,
+              deposit_eur: meta.deposit_eur,
+              client_user_id: meta.client_user_id,
+              client_email: meta.client_email,
+              client_name: meta.client_name,
+              client_phone: meta.client_phone,
+              reference:
+                meta.reference || session.id.slice(-8).toUpperCase(),
+              cancellation_policy: meta.cancellation_policy,
+              reference_image_url: meta.reference_image_url,
             }).catch((err) =>
-              console.error("[stripe/webhook] email pro", err),
+              console.error("[stripe/webhook] deposit fulfill", err),
             );
-          }
-
-          if (pro?.user_id && meta.slot_date && meta.slot_time) {
-            const bookingDate = combineBookingDateTime(
-              meta.slot_date,
-              meta.slot_time,
-            );
-            const { error: bookingErr } = await admin.from("bookings").insert({
-              user_id: pro.user_id,
-              client_id: meta.client_user_id || null,
-              client_name: meta.client_name ?? "Client",
-              client_email: meta.client_email ?? null,
-              client_phone: meta.client_phone ?? null,
-              project_description: meta.project_summary ?? null,
-              style: meta.style ?? null,
-              zone: meta.zone ?? null,
-              size: meta.size ?? null,
-              reference_image_url: meta.reference_image_url || null,
-              booking_date: bookingDate,
-              duration_minutes: Number(meta.duration_minutes ?? 60),
-              deposit_amount: depositEur,
-              deposit_paid: true,
-              status: "confirmed",
-              cancellation_policy:
-                (meta.cancellation_policy as "24h" | "48h" | "72h" | "non_refundable") ??
-                "48h",
-            });
-            if (bookingErr) {
-              console.error("[stripe/webhook] booking insert", bookingErr);
-            }
           }
         }
 

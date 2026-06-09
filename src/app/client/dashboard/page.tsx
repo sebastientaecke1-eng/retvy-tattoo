@@ -1,4 +1,10 @@
+import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { fetchClientBookings } from "@/lib/client/bookings";
+import { ClientBookingsList } from "@/components/client/client-bookings-list";
+import { DeferredBookingNotice } from "@/components/client/deferred-booking-notice";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,15 +16,26 @@ export default async function ClientDashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user?.email) redirect("/connexion?next=/client/dashboard");
+
+  const admin = createAdminClient();
+  const bookings = await fetchClientBookings(admin, user.email, user.id);
+
   const displayName =
-    (user?.user_metadata?.first_name as string) ||
-    user?.email?.split("@")[0] ||
+    (user.user_metadata?.first_name as string) ||
+    user.email.split("@")[0] ||
     "Client";
 
   return (
     <>
       <h1 className="mt-8 text-2xl font-bold">Bonjour, {displayName}</h1>
       <p className="text-zinc-500">Vos projets et rendez-vous Retvy</p>
+
+      <Suspense fallback={null}>
+        <DeferredBookingNotice />
+      </Suspense>
+
+      <ClientBookingsList bookings={bookings} />
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         <Card>

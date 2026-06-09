@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { userHasProAccess } from "@/lib/auth";
-import type { Booking } from "@/lib/pro/bookings";
+import { fetchProBookings } from "@/lib/pro/bookings";
 import { ReservationsPage } from "@/components/pro/reservations-page";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -36,15 +36,7 @@ export default async function ProDashboardReservationsPage() {
     );
   }
 
-  const { data: rows, error } = await admin
-    .from("bookings")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("booking_date", { ascending: true });
+  const bookings = await fetchProBookings(admin, user.id);
 
-  if (error) {
-    console.error("[reservations] bookings", error.message);
-  }
-
-  return <ReservationsPage initialBookings={(rows ?? []) as Booking[]} />;
+  return <ReservationsPage initialBookings={bookings} />;
 }

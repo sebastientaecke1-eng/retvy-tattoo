@@ -11,9 +11,17 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  getPublicSupabaseAnonKey,
+  getPublicSupabaseUrl,
+} from "@/lib/supabase/public-config";
 import { styleLabel } from "@/lib/pro/public-profile";
-import { sizeCategoryLabel } from "@/lib/pro/ink-booking";
+import {
+  normalizeSlotDate,
+  normalizeSlotTime,
+  sizeCategoryLabel,
+} from "@/lib/pro/ink-booking";
 import type { CancellationPolicy } from "@/lib/pro/deposit-settings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,7 +55,33 @@ type Props = {
   artistName: string;
 };
 
+function buildBookPayload(
+  intake: BookingIntakeResult,
+  referenceUrl: string | null,
+) {
+  const slot_date = normalizeSlotDate(intake.slot_date) ?? intake.slot_date;
+  const slot_time = normalizeSlotTime(intake.slot_time) ?? intake.slot_time;
+
+  return {
+    style: intake.style,
+    zone: intake.zone,
+    size: intake.size,
+    size_category: intake.size_category,
+    budget: intake.budget,
+    slot_date,
+    slot_time,
+    duration_minutes: intake.duration_minutes,
+    client_name: intake.client_name,
+    client_email: intake.client_email,
+    client_phone: intake.client_phone,
+    project_description: intake.project_description,
+    reference_image_url: intake.reference_image_url ?? referenceUrl,
+    reference_note: intake.reference_note,
+  };
+}
+
 export function InkBookingFlow({ slug, artistName }: Props) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const success = searchParams.get("success") === "1";
   const cancelled = searchParams.get("cancel") === "1";
@@ -56,6 +90,8 @@ export function InkBookingFlow({ slug, artistName }: Props) {
   const [referenceUrl, setReferenceUrl] = useState<string | null>(null);
   const [referenceUploading, setReferenceUploading] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [deferring, setDeferring] = useState(false);
+  const [deferSuccess, setDeferSuccess] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const kickedOff = useRef(false);
@@ -123,34 +159,75 @@ export function InkBookingFlow({ slug, artistName }: Props) {
     setPaying(true);
     setPayError(null);
     try {
-      const res = await fetch(`/api/ink/${slug}/book`, {
+      const payload = buildBookPayload(intake, referenceUrl);
+
+      const prepRes = await fetch(`/api/ink/${slug}/book`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          style: intake.style,
-          zone: intake.zone,
-          size: intake.size,
-          size_category: intake.size_category,
-          budget: intake.budget,
-          slot_date: intake.slot_date,
-          slot_time: intake.slot_time,
-          duration_minutes: intake.duration_minutes,
-          client_name: intake.client_name,
-          client_email: intake.client_email,
-          client_phone: intake.client_phone,
-          project_description: intake.project_description,
-          reference_image_url: intake.reference_image_url ?? referenceUrl,
-          reference_note: intake.reference_note,
-        }),
+        body: JSON.stringify(payload),
       });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) {
+      const prep = (await prepRes.json()) as {
+        deposit?: number;
+        reference?: string;
+        error?: string;
+      };
+      if (!prepRes.ok || prep.deposit == null || !prep.reference) {
+        throw new Error(prep.error ?? "Créneau ou données invalides");
+      }
+
+      const functionsBase = getPublicSupabaseUrl().replace(/\/$/, "");
+      const checkoutRes = await fetch(
+        `${functionsBase}/functions/v1/stripe-deposit`,
+        {
+          method: "POST",
+          headers: {
+            apikey: getPublicSupabaseAnonKey(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            bookingData: payload,
+            proSlug: slug,
+            depositAmount: prep.deposit,
+            reference: prep.reference,
+          }),
+        },
+      );
+      const data = (await checkoutRes.json()) as {
+        url?: string;
+        error?: string;
+      };
+      if (!checkoutRes.ok || !data.url) {
         throw new Error(data.error ?? "Impossible de lancer le paiement");
       }
       window.location.href = data.url;
     } catch (e) {
       setPayError(e instanceof Error ? e.message : "Erreur paiement");
       setPaying(false);
+    }
+  }
+
+  async function payLater() {
+    if (!intake) return;
+    setDeferring(true);
+    setPayError(null);
+    try {
+      const res = await fetch(`/api/ink/${slug}/book/defer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildBookPayload(intake, referenceUrl)),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? "Impossible de réserver");
+      }
+      setDeferSuccess(true);
+      setDeferring(false);
+      window.setTimeout(() => {
+        router.push("/client/dashboard?booking=deferred");
+      }, 2000);
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : "Erreur réservation");
+      setDeferring(false);
     }
   }
 
@@ -244,6 +321,11 @@ export function InkBookingFlow({ slug, artistName }: Props) {
             {error && (
               <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
                 Une erreur est survenue. Réessayez.
+                {error.message ? (
+                  <span className="mt-1 block text-xs text-red-400/80">
+                    {error.message}
+                  </span>
+                ) : null}
               </p>
             )}
           </div>
@@ -345,24 +427,51 @@ export function InkBookingFlow({ slug, artistName }: Props) {
                 paiement sera refusé si le créneau est pris entre-temps.
               </p>
             )}
+            {deferSuccess && (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                Votre RDV est réservé. Le tatoueur a été notifié. Pensez à
+                régler l&apos;acompte avant votre RDV. Redirection vers votre
+                espace client…
+              </div>
+            )}
             {payError && (
               <p className="text-sm text-red-400">{payError}</p>
             )}
-            <Button
-              size="lg"
-              className="w-full"
-              disabled={paying}
-              onClick={() => void payDeposit()}
-            >
-              {paying ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Redirection Stripe…
-                </>
-              ) : (
-                "Payer l'acompte"
-              )}
-            </Button>
+            {!deferSuccess && (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  size="lg"
+                  className="w-full sm:flex-1"
+                  disabled={paying || deferring}
+                  onClick={() => void payDeposit()}
+                >
+                  {paying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Redirection Stripe…
+                    </>
+                  ) : (
+                    `Payer l'acompte — ${intake.deposit_amount} €`
+                  )}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full sm:flex-1"
+                  disabled={paying || deferring}
+                  onClick={() => void payLater()}
+                >
+                  {deferring ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Réservation…
+                    </>
+                  ) : (
+                    "Payer plus tard"
+                  )}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

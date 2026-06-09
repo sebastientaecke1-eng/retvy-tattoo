@@ -6,8 +6,7 @@ import {
   type Booking,
   cancellationPolicyLabel,
   formatBookingDate,
-  formatBookingTime,
-  formatDuration,
+  formatBookingTimeRange,
   formatProjectSummary,
   getBookingStatusMeta,
   splitClientName,
@@ -47,9 +46,13 @@ export function BookingDetailModal({ booking, onClose }: Props) {
               {booking.client_name}
             </h2>
             <p className="mt-1 text-sm text-zinc-500">
-              {formatBookingDate(booking.booking_date)} ·{" "}
-              {formatBookingTime(booking.booking_date)} (
-              {formatDuration(booking.duration_minutes)})
+              {formatBookingDate(booking.booking_date)}
+            </p>
+            <p className="mt-0.5 text-sm font-medium text-amber-400/90">
+              {formatBookingTimeRange(
+                booking.booking_date,
+                booking.duration_minutes,
+              )}
             </p>
           </div>
           <button

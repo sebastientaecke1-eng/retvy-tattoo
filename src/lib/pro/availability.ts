@@ -67,12 +67,31 @@ function overlapsBooking(
   return bookings.some((b) => startMs < b.endMs && endMs > b.startMs);
 }
 
+export function emptyProAvailabilityContext(
+  proUserId: string,
+): ProAvailabilityContext {
+  return {
+    proUserId,
+    schedules: [],
+    blockedDates: new Set(),
+    durationByStyleSize: new Map(),
+    bookings: [],
+  };
+}
+
 export async function loadProAvailabilityContext(
   proUserId: string,
   rangeStart: Date,
   rangeEnd: Date,
 ): Promise<ProAvailabilityContext> {
-  const admin = createAdminClient();
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (err) {
+    console.error("[availability] createAdminClient", err);
+    return emptyProAvailabilityContext(proUserId);
+  }
+
   const startIso = rangeStart.toISOString();
   const endIso = rangeEnd.toISOString();
 
@@ -101,6 +120,12 @@ export async function loadProAvailabilityContext(
         .neq("status", "cancelled"),
     ]);
 
+  for (const res of [schedulesRes, blockedRes, durationsRes, bookingsRes]) {
+    if (res.error) {
+      console.error("[availability] supabase", res.error.message);
+    }
+  }
+
   const durationByStyleSize = new Map<string, { min: number; max: number }>();
   for (const row of durationsRes.data ?? []) {
     const cat = row.size_category;
@@ -118,7 +143,8 @@ export async function loadProAvailabilityContext(
 
   const bookings = (bookingsRes.data ?? []).map((b) => {
     const start = new Date(b.booking_date).getTime();
-    const end = start + b.duration_minutes * 60_000;
+    const duration = Number(b.duration_minutes) || 60;
+    const end = start + duration * 60_000;
     return { startMs: start, endMs: end };
   });
 
@@ -165,6 +191,12 @@ export function slotsForDay(
   return slots;
 }
 
+function isValidIsoDate(iso: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const date = new Date(`${iso}T12:00:00`);
+  return !Number.isNaN(date.getTime());
+}
+
 export function checkPreferredDates(
   dates: string[],
   ctx: ProAvailabilityContext,
@@ -172,12 +204,29 @@ export function checkPreferredDates(
   blocked: string[];
   no_schedule: string[];
   available_days: string[];
+  unparsed_dates: string[];
+  has_working_hours: boolean;
 } {
   const blocked: string[] = [];
   const noSchedule: string[] = [];
   const availableDays: string[] = [];
+  const unparsedDates: string[] = [];
+
+  if (!dates.length) {
+    return {
+      blocked,
+      no_schedule: noSchedule,
+      available_days: availableDays,
+      unparsed_dates: unparsedDates,
+      has_working_hours: ctx.schedules.length > 0,
+    };
+  }
 
   for (const iso of dates) {
+    if (!isValidIsoDate(iso)) {
+      unparsedDates.push(iso);
+      continue;
+    }
     if (ctx.blockedDates.has(iso)) {
       blocked.push(iso);
       continue;
@@ -196,6 +245,8 @@ export function checkPreferredDates(
     blocked,
     no_schedule: noSchedule,
     available_days: availableDays,
+    unparsed_dates: unparsedDates,
+    has_working_hours: ctx.schedules.length > 0,
   };
 }
 
@@ -213,10 +264,17 @@ export function proposeAvailableSlots(opts: {
   const daysAhead = opts.daysAhead ?? 28;
   const duration = getDurationMinutes(opts.ctx, opts.style, opts.sizeCategory);
 
-  const preferred = new Set(opts.preferredDates ?? []);
+  if (!opts.ctx.schedules.length) {
+    return [];
+  }
+
+  const preferred = new Set(
+    (opts.preferredDates ?? []).filter((iso) => isValidIsoDate(iso)),
+  );
   const results: AvailableSlot[] = [];
 
   const tryDate = (date: Date) => {
+    if (Number.isNaN(date.getTime())) return false;
     const iso = formatIsoDateLocal(date);
     const times = slotsForDay(date, opts.ctx, duration);
     for (const time of times) {
