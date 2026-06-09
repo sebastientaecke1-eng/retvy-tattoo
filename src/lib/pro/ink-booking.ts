@@ -1,3 +1,4 @@
+import { parisWallTimeToUtcIso } from "@/lib/datetime/paris";
 import type { SizeCategory } from "@/lib/pro/style-duration-tiers";
 import { isSizeCategory } from "@/lib/pro/style-duration-tiers";
 import { styleLabel } from "@/lib/pro/public-profile";
@@ -167,7 +168,7 @@ export function combineBookingDateTime(date: string, time: string): string {
   if (!normalizedDate || !normalizedTime) {
     throw new Error(`Date/heure invalides (${date}, ${time})`);
   }
-  return new Date(`${normalizedDate}T${normalizedTime}:00`).toISOString();
+  return parisWallTimeToUtcIso(normalizedDate, normalizedTime);
 }
 
 export function parseIsoDateInput(value: string): string | null {

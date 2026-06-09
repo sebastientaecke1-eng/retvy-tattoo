@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   type AgendaView,
   type Booking,
-  bookingDate,
   bookingsInRange,
   endOfMonth,
   endOfWeek,
@@ -15,6 +14,7 @@ import {
   getBookingStatusMeta,
   getMonthGridDays,
   getWeekDays,
+  isBookingOnCalendarDay,
   isSameDay,
   shiftMonth,
   shiftWeek,
@@ -145,7 +145,7 @@ function WeekView({
     <div className="grid gap-3 md:grid-cols-7">
       {days.map((day, index) => {
         const dayBookings = bookings.filter((b) =>
-          isSameDay(bookingDate(b), day),
+          isBookingOnCalendarDay(b.booking_date, day),
         );
         const isToday = isSameDay(day, new Date());
 
@@ -222,7 +222,7 @@ function MonthView({
         {days.map((day) => {
           const inMonth = day.getMonth() === month;
           const dayBookings = bookings.filter((b) =>
-            isSameDay(bookingDate(b), day),
+            isBookingOnCalendarDay(b.booking_date, day),
           );
           const isToday = isSameDay(day, new Date());
           const count = dayBookings.length;

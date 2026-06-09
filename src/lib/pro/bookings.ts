@@ -1,4 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  formatInParis,
+  parisDateTimeParts,
+  parisDayKey,
+} from "@/lib/datetime/paris";
 import type { CancellationPolicy } from "@/lib/pro/deposit-settings";
 import { CANCELLATION_OPTIONS } from "@/lib/pro/deposit-settings";
 import type { Database } from "@/lib/database.types";
@@ -72,18 +77,16 @@ export function formatDuration(minutes: number): string {
 }
 
 export function formatBookingTime(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", {
+  return formatInParis(iso, {
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(iso));
+  });
 }
 
-/** Heure compacte pour l'agenda (ex. 14h00). */
+/** Heure compacte pour l'agenda (ex. 14h00) — toujours en Europe/Paris. */
 export function formatBookingTimeCompact(iso: string): string {
-  const d = new Date(iso);
-  const h = d.getHours();
-  const m = d.getMinutes().toString().padStart(2, "0");
-  return `${h}h${m}`;
+  const { hour, minute } = parisDateTimeParts(iso);
+  return `${hour.padStart(2, "0")}h${minute.padStart(2, "0")}`;
 }
 
 /** Plage horaire : 14h00 → 17h30 (3h30). */
@@ -91,9 +94,11 @@ export function formatBookingTimeRange(
   iso: string,
   durationMinutes: number,
 ): string {
-  const start = new Date(iso);
-  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
-  return `${formatBookingTimeCompact(iso)} → ${formatBookingTimeCompact(end.toISOString())} (${formatDuration(durationMinutes)})`;
+  const startMs = new Date(iso).getTime();
+  const endIso = new Date(
+    startMs + durationMinutes * 60_000,
+  ).toISOString();
+  return `${formatBookingTimeCompact(iso)} → ${formatBookingTimeCompact(endIso)} (${formatDuration(durationMinutes)})`;
 }
 
 export function formatStyleZone(booking: Booking): string {
@@ -105,12 +110,12 @@ export function formatStyleZone(booking: Booking): string {
 }
 
 export function formatBookingDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", {
+  return formatInParis(iso, {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
-  }).format(new Date(iso));
+  });
 }
 
 export function formatProjectSummary(booking: Booking): string {
@@ -175,6 +180,13 @@ export function isSameDay(a: Date, b: Date): boolean {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
+}
+
+/** Compare un RDV (UTC en base) à une date calendrier locale du navigateur. */
+export function isBookingOnCalendarDay(bookingIso: string, day: Date): boolean {
+  const bookingKey = parisDayKey(bookingIso);
+  const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+  return bookingKey === dayKey;
 }
 
 export function bookingDate(booking: Booking): Date {
@@ -295,21 +307,9 @@ export function splitBookingDateTime(iso: string): {
   slot_date: string;
   slot_time: string;
 } {
-  const parts = new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date(iso));
-
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === type)?.value ?? "";
-
+  const parts = parisDateTimeParts(iso);
   return {
-    slot_date: `${get("year")}-${get("month")}-${get("day")}`,
-    slot_time: `${get("hour")}:${get("minute")}`,
+    slot_date: `${parts.year}-${parts.month}-${parts.day}`,
+    slot_time: `${parts.hour.padStart(2, "0")}:${parts.minute.padStart(2, "0")}`,
   };
 }

@@ -101,7 +101,7 @@ export function SearchBar() {
   }
 
   return (
-    <div ref={containerRef} className="relative mt-8 max-w-xl">
+    <div ref={containerRef} className="relative z-10 mt-8 max-w-xl">
       <label htmlFor="artist-search" className="sr-only">
         Rechercher un tatoueur
       </label>
@@ -121,7 +121,7 @@ export function SearchBar() {
           placeholder="Rechercher un tatoueur..."
           autoComplete="off"
           className={cn(
-            "w-full rounded-xl border border-zinc-800 bg-[#0A0A0A] py-3 pl-11 pr-11 text-sm text-zinc-100",
+            "w-full rounded-xl border border-zinc-700 bg-[#0A0A0A] py-3 pl-11 pr-11 text-sm text-zinc-100 shadow-sm shadow-black/20",
             "placeholder:text-zinc-600",
             "focus:border-[#0057FF] focus:outline-none focus:ring-2 focus:ring-[#0057FF]/30",
           )}
