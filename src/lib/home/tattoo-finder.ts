@@ -1,3 +1,4 @@
+import type { PostgrestError } from "@supabase/supabase-js";
 import { PRO_STYLE_OPTIONS } from "@/lib/pro/styles";
 
 export const LANDING_STYLE_CHIPS = [
@@ -11,22 +12,12 @@ export const LANDING_STYLE_CHIPS = [
 
 export type LandingStyleChip = (typeof LANDING_STYLE_CHIPS)[number]["label"];
 
-export const LANDING_BUDGET_CHIPS = [
-  "- de 100€",
-  "100-300€",
-  "300-500€",
-  "500€+",
-] as const;
-
-export type LandingBudgetChip = (typeof LANDING_BUDGET_CHIPS)[number];
-
 export type TattooFinderArtist = {
+  id: string | null;
   slug: string;
   artist_name: string;
-  studio: string | null;
   city: string | null;
   styles: string[];
-  avatar_url: string | null;
   latitude: number | null;
   longitude: number | null;
 };
@@ -35,7 +26,6 @@ export type TattooFinderAnswers = {
   style: LandingStyleChip;
   styleId: string | null;
   city: string;
-  budget: LandingBudgetChip;
 };
 
 function escapeIlike(value: string): string {
@@ -54,45 +44,85 @@ export function resolveLandingStyleId(
   return chip?.styleId ?? null;
 }
 
-/**
- * Filtre client pour le style (complément au filtre Supabase sur le tableau).
- */
-export function artistMatchesStyle(
-  artistStyles: string[] | null,
+function filterByStyle(
+  pros: TattooFinderArtist[],
   styleId: string | null,
-): boolean {
-  if (!styleId) return true;
-  if (!artistStyles?.length) return false;
-  const needle = styleId.toLowerCase();
-  return artistStyles.some(
-    (s) =>
-      s.toLowerCase() === needle ||
-      s.toLowerCase().includes(needle) ||
-      styleIdToLabel(s).toLowerCase().includes(needle),
+): TattooFinderArtist[] {
+  if (!styleId) return pros;
+  return pros.filter(
+    (p) => p.styles && p.styles.includes(styleId),
   );
 }
 
-export function buildTattooFinderQuery(
-  supabase: ReturnType<
-    typeof import("@/lib/supabase/client").createClientOrNull
-  >,
-  answers: TattooFinderAnswers,
-) {
-  if (!supabase) return null;
+type SupabaseClient = NonNullable<
+  ReturnType<typeof import("@/lib/supabase/client").createClientOrNull>
+>;
 
+function isMissingGeoColumnError(error: PostgrestError): boolean {
+  const msg = `${error.message} ${error.details ?? ""}`.toLowerCase();
+  return msg.includes("latitude") || msg.includes("longitude");
+}
+
+export async function fetchTattooFinderArtists(
+  supabase: SupabaseClient,
+  answers: TattooFinderAnswers,
+): Promise<{ data: TattooFinderArtist[] | null; error: PostgrestError | null }> {
   const city = answers.city.trim();
+  const styleId = answers.styleId;
+
   let query = supabase
     .from("pro_profiles_public")
-    .select(
-      "slug, artist_name, studio, city, styles, avatar_url, latitude, longitude",
-    )
+    .select("user_id, slug, artist_name, city, styles, latitude, longitude")
     .not("slug", "is", null)
-    .ilike("city", `%${escapeIlike(city)}%`)
     .order("artist_name");
 
-  if (answers.styleId) {
-    query = query.contains("styles", [answers.styleId]);
+  if (city) {
+    query = query.ilike("city", `%${escapeIlike(city)}%`);
   }
 
-  return query;
+  let { data, error } = await query;
+
+  if (error && isMissingGeoColumnError(error)) {
+    let fallbackQuery = supabase
+      .from("pro_profiles_public")
+      .select("user_id, slug, artist_name, city, styles")
+      .not("slug", "is", null)
+      .order("artist_name");
+
+    if (city) {
+      fallbackQuery = fallbackQuery.ilike("city", `%${escapeIlike(city)}%`);
+    }
+
+    const fallback = await fallbackQuery;
+    data = fallback.data?.map((row) => ({
+      ...row,
+      latitude: null,
+      longitude: null,
+    })) ?? null;
+    error = fallback.error;
+  }
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  const pros: TattooFinderArtist[] = (data ?? [])
+    .filter(
+      (row): row is typeof row & { slug: string; artist_name: string } =>
+        typeof row.slug === "string" &&
+        row.slug.length > 0 &&
+        typeof row.artist_name === "string" &&
+        row.artist_name.length > 0,
+    )
+    .map((row) => ({
+      id: row.user_id ?? null,
+      slug: row.slug,
+      artist_name: row.artist_name,
+      city: row.city,
+      styles: row.styles ?? [],
+      latitude: typeof row.latitude === "number" ? row.latitude : null,
+      longitude: typeof row.longitude === "number" ? row.longitude : null,
+    }));
+
+  return { data: filterByStyle(pros, styleId), error: null };
 }

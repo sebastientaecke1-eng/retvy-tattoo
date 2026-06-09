@@ -3,12 +3,9 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from "lucide-react";
 import {
-  LANDING_BUDGET_CHIPS,
   LANDING_STYLE_CHIPS,
-  artistMatchesStyle,
-  buildTattooFinderQuery,
+  fetchTattooFinderArtists,
   resolveLandingStyleId,
-  type LandingBudgetChip,
   type LandingStyleChip,
   type TattooFinderAnswers,
   type TattooFinderArtist,
@@ -18,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TattooFinderResults } from "@/components/home/tattoo-finder-results";
 import { cn } from "@/lib/utils";
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2;
 
 type Props = {
   onResultsChange?: (showing: boolean) => void;
@@ -28,7 +25,6 @@ export function TattooFinder({ onResultsChange }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [style, setStyle] = useState<LandingStyleChip | null>(null);
   const [city, setCity] = useState("");
-  const [budget, setBudget] = useState<LandingBudgetChip | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<TattooFinderAnswers | null>(null);
@@ -44,7 +40,6 @@ export function TattooFinder({ onResultsChange }: Props) {
     setStep(1);
     setStyle(null);
     setCity("");
-    setBudget(null);
     setAnswers(null);
     setArtists(null);
     setError(null);
@@ -54,14 +49,12 @@ export function TattooFinder({ onResultsChange }: Props) {
   async function runSearch(
     selectedStyle: LandingStyleChip,
     selectedCity: string,
-    selectedBudget: LandingBudgetChip,
   ) {
     const styleId = resolveLandingStyleId(selectedStyle);
     const nextAnswers: TattooFinderAnswers = {
       style: selectedStyle,
       styleId,
       city: selectedCity.trim(),
-      budget: selectedBudget,
     };
 
     setLoading(true);
@@ -74,33 +67,27 @@ export function TattooFinder({ onResultsChange }: Props) {
       return;
     }
 
-    const query = buildTattooFinderQuery(supabase, nextAnswers);
-    if (!query) {
-      setError("Connexion indisponible — réessayez plus tard.");
-      setLoading(false);
-      return;
-    }
-
-    const { data, error: queryError } = await query;
-
-    setLoading(false);
+    const { data, error: queryError } = await fetchTattooFinderArtists(
+      supabase,
+      nextAnswers,
+    );
 
     if (queryError) {
-      console.error("[TattooFinder]", queryError.message);
+      console.error("[TattooFinder] Supabase error:", {
+        message: queryError.message,
+        code: queryError.code,
+        details: queryError.details,
+        hint: queryError.hint,
+        error: queryError,
+      });
+      setLoading(false);
       setError("Impossible de charger les tatoueurs. Réessayez.");
       return;
     }
 
-    const rows = (data ?? []).filter(
-      (row): row is TattooFinderArtist =>
-        typeof row.slug === "string" &&
-        row.slug.length > 0 &&
-        typeof row.artist_name === "string" &&
-        artistMatchesStyle(row.styles, styleId),
-    );
-
+    setLoading(false);
     setAnswers(nextAnswers);
-    setArtists(rows);
+    setArtists(data ?? []);
     notifyResults(true);
   }
 
@@ -109,19 +96,10 @@ export function TattooFinder({ onResultsChange }: Props) {
     setStep(2);
   }
 
-  function handleCitySubmit(e: React.FormEvent) {
+  async function handleCitySubmit(e: React.FormEvent) {
     e.preventDefault();
-    const trimmed = city.trim();
-    if (!trimmed || !style) return;
-    setStep(3);
-  }
-
-  async function handleBudgetSelect(value: LandingBudgetChip) {
-    if (!style) return;
-    const trimmed = city.trim();
-    if (!trimmed) return;
-    setBudget(value);
-    await runSearch(style, trimmed, value);
+    if (!style || loading) return;
+    await runSearch(style, city.trim());
   }
 
   if (showingResults && answers) {
@@ -144,7 +122,7 @@ export function TattooFinder({ onResultsChange }: Props) {
               Trouver mon tatoueur
             </span>
             <span className="ml-auto text-[10px] uppercase tracking-widest text-zinc-500">
-              Étape {step}/3
+              Étape {step}/2
             </span>
           </div>
 
@@ -171,21 +149,23 @@ export function TattooFinder({ onResultsChange }: Props) {
             {step === 2 && (
               <StepPanel
                 title="Dans quelle ville ?"
-                subtitle="Indiquez la ville où vous souhaitez vous faire tatouer."
+                subtitle="Indiquez une ville ou laissez vide pour voir tous nos artistes."
               >
-                <form onSubmit={handleCitySubmit} className="space-y-4">
+                <form onSubmit={(e) => void handleCitySubmit(e)} className="space-y-4">
                   <input
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="Ex. Paris, Lyon, Marseille…"
+                    placeholder="Ex. Paris, Lyon, Marseille… (optionnel)"
                     autoFocus
+                    disabled={loading}
                     className={inputClass}
                   />
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => setStep(1)}
+                      disabled={loading}
                       className={backButtonClass}
                     >
                       <ArrowLeft className="h-4 w-4" />
@@ -193,50 +173,23 @@ export function TattooFinder({ onResultsChange }: Props) {
                     </button>
                     <button
                       type="submit"
-                      disabled={!city.trim()}
+                      disabled={loading}
                       className={primaryButtonClass}
                     >
-                      Continuer
-                      <ArrowRight className="h-4 w-4" />
+                      {loading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Recherche…
+                        </>
+                      ) : (
+                        <>
+                          Voir les résultats
+                          <ArrowRight className="h-4 w-4" />
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
-              </StepPanel>
-            )}
-
-            {step === 3 && (
-              <StepPanel
-                title="Quel est votre budget ?"
-                subtitle="Cela nous aide à affiner votre recherche."
-              >
-                {loading ? (
-                  <div className="flex items-center gap-2 py-8 text-sm text-zinc-500">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#0057FF]" />
-                    Recherche des tatoueurs…
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex flex-wrap gap-2">
-                      {LANDING_BUDGET_CHIPS.map((chip) => (
-                        <ChipButton
-                          key={chip}
-                          active={budget === chip}
-                          onClick={() => void handleBudgetSelect(chip)}
-                        >
-                          {chip}
-                        </ChipButton>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setStep(2)}
-                      className={cn(backButtonClass, "mt-4")}
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                      Retour
-                    </button>
-                  </>
-                )}
               </StepPanel>
             )}
 
@@ -300,11 +253,12 @@ function ChipButton({
 const inputClass = cn(
   "w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-sm text-zinc-100",
   "placeholder:text-zinc-600 focus:border-[#0057FF]/60 focus:outline-none focus:ring-2 focus:ring-[#0057FF]/20",
+  "disabled:opacity-50",
 );
 
 const backButtonClass = cn(
   "inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-4 py-2.5 text-sm text-zinc-400",
-  "transition-colors hover:border-zinc-600 hover:text-zinc-200",
+  "transition-colors hover:border-zinc-600 hover:text-zinc-200 disabled:opacity-40",
 );
 
 const primaryButtonClass = cn(

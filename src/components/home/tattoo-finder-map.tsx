@@ -1,19 +1,23 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { geocodeCity } from "@/lib/geocode";
 import type { TattooFinderArtist } from "@/lib/home/tattoo-finder";
 import "leaflet/dist/leaflet.css";
 
 const COBALT = "#0057FF";
-const DEFAULT_CENTER: [number, number] = [46.6, 2.4];
-const DEFAULT_ZOOM = 6;
+const FRANCE_CENTER: [number, number] = [46.6, 2.4];
+const FRANCE_ZOOM = 6;
+const CITY_ZOOM = 11;
+const PRO_ZOOM = 11;
 
 type Props = {
   artists: TattooFinderArtist[];
+  city?: string;
   className?: string;
 };
 
-export function TattooFinderMap({ artists, className }: Props) {
+export function TattooFinderMap({ artists, city, className }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
 
@@ -23,7 +27,8 @@ export function TattooFinderMap({ artists, className }: Props) {
 
     let cancelled = false;
 
-    void import("leaflet").then((L) => {
+    async function initMap() {
+      const L = await import("leaflet");
       if (cancelled || !containerRef.current) return;
 
       if (mapRef.current) {
@@ -35,7 +40,7 @@ export function TattooFinderMap({ artists, className }: Props) {
         (a) => a.latitude != null && a.longitude != null,
       );
 
-      const map = L.map(container, {
+      const map = L.map(containerRef.current, {
         scrollWheelZoom: false,
         attributionControl: true,
       });
@@ -47,8 +52,6 @@ export function TattooFinderMap({ artists, className }: Props) {
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19,
       }).addTo(map);
-
-      const bounds = L.latLngBounds([]);
 
       for (const artist of withCoords) {
         const lat = artist.latitude!;
@@ -69,16 +72,38 @@ export function TattooFinderMap({ artists, className }: Props) {
             <a href="/ink/${escapeHtml(artist.slug)}" style="color:${COBALT};font-size:13px">Voir le profil</a>
           </div>`,
         );
-
-        bounds.extend([lat, lng]);
       }
 
       if (withCoords.length > 0) {
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
-      } else {
-        map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+        if (withCoords.length === 1) {
+          map.setView(
+            [withCoords[0].latitude!, withCoords[0].longitude!],
+            PRO_ZOOM,
+          );
+        } else {
+          const bounds = L.latLngBounds(
+            withCoords.map((a) => [a.latitude!, a.longitude!] as [number, number]),
+          );
+          map.fitBounds(bounds, { padding: [40, 40], maxZoom: PRO_ZOOM });
+        }
+        return;
       }
-    });
+
+      const searchedCity = city?.trim();
+      if (searchedCity) {
+        const coords = await geocodeCity(searchedCity);
+        if (cancelled) return;
+
+        if (coords) {
+          map.setView([coords.lat, coords.lon], CITY_ZOOM);
+          return;
+        }
+      }
+
+      map.setView(FRANCE_CENTER, FRANCE_ZOOM);
+    }
+
+    void initMap();
 
     return () => {
       cancelled = true;
@@ -87,7 +112,7 @@ export function TattooFinderMap({ artists, className }: Props) {
         mapRef.current = null;
       }
     };
-  }, [artists]);
+  }, [artists, city]);
 
   return (
     <div

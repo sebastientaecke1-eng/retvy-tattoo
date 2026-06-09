@@ -13,6 +13,11 @@ const bodySchema = z.object({
   studio: z.string().max(120).nullable().optional(),
   city: z.string().min(1).max(120),
   address: z.string().max(240).nullable().optional(),
+  postal_code: z
+    .string()
+    .regex(/^\d{5}$/, "Code postal invalide")
+    .nullable()
+    .optional(),
   phone: z.string().min(1).max(40),
   styles: z.array(z.string().min(1).max(60)).min(1).max(20),
   slug: z.string().regex(/^[a-z0-9]{3,32}$/),
@@ -72,6 +77,15 @@ export async function PATCH(request: Request) {
 
   const coords = await resolveProfileCoordinates(admin, user.id, body, existing);
 
+  console.log("[api/pro/profile] PATCH geocode", {
+    userId: user.id,
+    geocodeQuery: coords.geocodeQuery,
+    geocoded: coords.geocoded,
+    provider: coords.provider,
+    latitude: coords.latitude,
+    longitude: coords.longitude,
+  });
+
   const { data: row, error } = await admin
     .from("pro_profiles")
     .update({
@@ -88,6 +102,12 @@ export async function PATCH(request: Request) {
     console.error("[api/pro/profile] PATCH", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  console.log("[api/pro/profile] PATCH saved coordinates", {
+    userId: user.id,
+    latitude: row?.latitude,
+    longitude: row?.longitude,
+  });
 
   return NextResponse.json({ ok: true, profile: row });
 }
@@ -109,7 +129,17 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const coords = await resolveProfileCoordinates(admin, user.id, {
     address: body.address ?? null,
+    postal_code: body.postal_code ?? null,
     city: body.city,
+  });
+
+  console.log("[api/pro/profile] POST geocode", {
+    userId: user.id,
+    geocodeQuery: coords.geocodeQuery,
+    geocoded: coords.geocoded,
+    provider: coords.provider,
+    latitude: coords.latitude,
+    longitude: coords.longitude,
   });
 
   const { data: row, error } = await admin
@@ -123,6 +153,7 @@ export async function POST(request: Request) {
         studio: body.studio ?? null,
         city: body.city,
         address: body.address ?? null,
+        postal_code: body.postal_code ?? null,
         latitude: coords.latitude,
         longitude: coords.longitude,
         phone: body.phone,
@@ -132,13 +163,19 @@ export async function POST(request: Request) {
       },
       { onConflict: "user_id" },
     )
-    .select("slug, artist_name")
+    .select("slug, artist_name, latitude, longitude")
     .single();
 
   if (error) {
     console.error("[api/pro/profile] pro_profiles", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  console.log("[api/pro/profile] POST saved coordinates", {
+    userId: user.id,
+    latitude: row?.latitude,
+    longitude: row?.longitude,
+  });
 
   const roleResult = await ensureProRole(admin, user.id);
 

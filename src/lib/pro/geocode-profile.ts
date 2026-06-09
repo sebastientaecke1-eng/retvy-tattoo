@@ -14,6 +14,14 @@ type ProfileGeoFields = {
   longitude?: number | null;
 };
 
+export type ResolvedProfileCoordinates = {
+  latitude: number | null;
+  longitude: number | null;
+  geocodeQuery: string | null;
+  geocoded: boolean;
+  provider: "gouv" | "nominatim" | null;
+};
+
 /**
  * Géocode l'adresse du pro et retourne latitude/longitude à persister.
  * One-shot pour les pros existants sans coordonnées au prochain save.
@@ -23,7 +31,7 @@ export async function resolveProfileCoordinates(
   userId: string,
   patch: ProfileGeoFields,
   existing?: ProfileGeoFields | null,
-): Promise<{ latitude: number | null; longitude: number | null }> {
+): Promise<ResolvedProfileCoordinates> {
   const merged = {
     address: patch.address ?? existing?.address ?? null,
     postal_code: patch.postal_code ?? existing?.postal_code ?? null,
@@ -40,29 +48,83 @@ export async function resolveProfileCoordinates(
   const needsGeocode =
     addressChanged || merged.latitude == null || merged.longitude == null;
 
+  const geocodeQuery = buildProfileGeocodeQuery(merged);
+
   if (!needsGeocode) {
     return {
       latitude: merged.latitude,
       longitude: merged.longitude,
+      geocodeQuery,
+      geocoded: false,
+      provider: null,
     };
   }
 
-  const query = buildProfileGeocodeQuery(merged);
-  if (!query) {
-    return { latitude: null, longitude: null };
+  if (!geocodeQuery) {
+    console.warn("[resolveProfileCoordinates] no address to geocode", {
+      userId,
+      merged,
+    });
+    return {
+      latitude: null,
+      longitude: null,
+      geocodeQuery: null,
+      geocoded: false,
+      provider: null,
+    };
   }
 
-  const coords = await geocodeAddress(query);
-  if (!coords) {
-    console.warn("[resolveProfileCoordinates] geocode failed", {
+  console.log("[resolveProfileCoordinates] geocoding", {
+    userId,
+    geocodeQuery,
+    addressChanged,
+    needsGeocode,
+  });
+
+  try {
+    const coords = await geocodeAddress(geocodeQuery);
+
+    if (!coords) {
+      console.warn("[resolveProfileCoordinates] geocode failed", {
+        userId,
+        geocodeQuery,
+      });
+      return {
+        latitude: merged.latitude,
+        longitude: merged.longitude,
+        geocodeQuery,
+        geocoded: false,
+        provider: null,
+      };
+    }
+
+    console.log("[resolveProfileCoordinates] geocode ok", {
       userId,
-      query,
+      geocodeQuery,
+      provider: coords.provider,
+      latitude: coords.lat,
+      longitude: coords.lon,
+    });
+
+    return {
+      latitude: coords.lat,
+      longitude: coords.lon,
+      geocodeQuery,
+      geocoded: true,
+      provider: coords.provider,
+    };
+  } catch (error) {
+    console.error("[resolveProfileCoordinates] unexpected error", {
+      userId,
+      geocodeQuery,
+      error: error instanceof Error ? error.message : error,
     });
     return {
       latitude: merged.latitude,
       longitude: merged.longitude,
+      geocodeQuery,
+      geocoded: false,
+      provider: null,
     };
   }
-
-  return { latitude: coords.lat, longitude: coords.lon };
 }

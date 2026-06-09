@@ -38,7 +38,9 @@ export function TattooFinderResults({ artists, answers, onReset }: Props) {
             Résultats
           </p>
           <h2 className="mt-2 text-xl font-bold text-zinc-100">
-            Aucun tatoueur Retvy dans cette ville pour l&apos;instant.
+            {answers.city
+              ? "Aucun tatoueur Retvy dans cette ville pour l'instant."
+              : "Aucun tatoueur Retvy pour ces critères pour l'instant."}
           </h2>
           <p className="mt-3 text-sm text-zinc-400">
             Vous pouvez quand même parcourir tous nos artistes.
@@ -64,12 +66,10 @@ export function TattooFinderResults({ artists, answers, onReset }: Props) {
             Résultats
           </p>
           <h2 className="mt-1 text-2xl font-bold text-zinc-100">
-            {artists.length} tatoueur{artists.length > 1 ? "s" : ""} à{" "}
-            {answers.city}
+            {artists.length} tatoueur{artists.length > 1 ? "s" : ""}
+            {answers.city ? ` à ${answers.city}` : ""}
           </h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            {answers.style} · {answers.budget}
-          </p>
+          <p className="mt-1 text-sm text-zinc-500">{answers.style}</p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={onReset}>
           Nouvelle recherche
@@ -88,6 +88,7 @@ export function TattooFinderResults({ artists, answers, onReset }: Props) {
         <div className="min-h-[320px] lg:min-h-[480px]">
           <TattooFinderMap
             artists={artists}
+            city={answers.city}
             className="h-full min-h-[320px] w-full rounded-2xl border border-zinc-800 lg:min-h-[480px]"
           />
         </div>
@@ -96,17 +97,16 @@ export function TattooFinderResults({ artists, answers, onReset }: Props) {
   );
 }
 
-function ArtistCard({ artist }: { artist: TattooFinderArtist }) {
-  const imageSrc =
-    artist.avatar_url ??
-    "https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=800&q=80";
+const PLACEHOLDER_AVATAR =
+  "https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=800&q=80";
 
+function ArtistCard({ artist }: { artist: TattooFinderArtist }) {
   return (
     <Card className="overflow-hidden border-zinc-800 bg-[#0A0A0A]">
       <div className="flex gap-4 p-4">
         <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-900">
           <Image
-            src={imageSrc}
+            src={PLACEHOLDER_AVATAR}
             alt={artist.artist_name}
             fill
             className="object-cover"
@@ -115,10 +115,12 @@ function ArtistCard({ artist }: { artist: TattooFinderArtist }) {
         </div>
         <CardContent className="flex flex-1 flex-col justify-center p-0">
           <h3 className="font-semibold text-zinc-100">{artist.artist_name}</h3>
-          <p className="mt-0.5 flex items-center gap-1 text-sm text-zinc-500">
-            <MapPin className="h-3.5 w-3.5 shrink-0 text-[#0057FF]" />
-            {[artist.studio, artist.city].filter(Boolean).join(" · ")}
-          </p>
+          {artist.city ? (
+            <p className="mt-0.5 flex items-center gap-1 text-sm text-zinc-500">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-[#0057FF]" />
+              {artist.city}
+            </p>
+          ) : null}
           {artist.styles.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {artist.styles.slice(0, 4).map((styleId) => (
