@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { resolveProfileCoordinates } from "@/lib/pro/geocode-profile";
 import { profilePatchSchema } from "@/lib/pro/profile-patch-schema";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureProRole } from "@/lib/supabase/ensure-pro-role";
@@ -61,7 +62,7 @@ export async function PATCH(request: Request) {
   const admin = createAdminClient();
   const { data: existing } = await admin
     .from("pro_profiles")
-    .select("user_id")
+    .select("user_id, address, postal_code, city, latitude, longitude")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -69,10 +70,14 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Profil pro introuvable" }, { status: 404 });
   }
 
+  const coords = await resolveProfileCoordinates(admin, user.id, body, existing);
+
   const { data: row, error } = await admin
     .from("pro_profiles")
     .update({
       ...body,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", user.id)
@@ -102,6 +107,11 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
+  const coords = await resolveProfileCoordinates(admin, user.id, {
+    address: body.address ?? null,
+    city: body.city,
+  });
+
   const { data: row, error } = await admin
     .from("pro_profiles")
     .upsert(
@@ -113,6 +123,8 @@ export async function POST(request: Request) {
         studio: body.studio ?? null,
         city: body.city,
         address: body.address ?? null,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
         phone: body.phone,
         styles: body.styles,
         slug: body.slug,

@@ -24,6 +24,8 @@ export type ProProfileRow = {
   trial_ends_at: string | null;
   price_min: number | null;
   price_max: number | null;
+  latitude: number | null;
+  longitude: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -42,6 +44,8 @@ export type ProProfileInsert = {
   slug: string;
   status?: string;
   bio?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export type ProProfileUpdate = Partial<ProProfileInsert> & {
@@ -50,6 +54,8 @@ export type ProProfileUpdate = Partial<ProProfileInsert> & {
   price_min?: number | null;
   price_max?: number | null;
   postal_code?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   updated_at?: string;
   stripe_connect_account_id?: string | null;
   stripe_customer_id?: string | null;
@@ -400,6 +406,8 @@ export interface Database {
           slug: string | null;
           avatar_url: string | null;
           cover_url: string | null;
+          latitude: number | null;
+          longitude: number | null;
           price_min: number | null;
           price_max: number | null;
           status: string | null;

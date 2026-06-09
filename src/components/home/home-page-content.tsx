@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { MapPin, Shield, Sparkles } from "lucide-react";
-import { AiChat } from "@/components/home/ai-chat";
+import { TattooFinder } from "@/components/home/tattoo-finder";
 import { SearchBar } from "@/components/home/search-bar";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
+import { cn } from "@/lib/utils";
 
 const ctaPrimary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-base font-semibold text-black shadow-lg shadow-amber-500/20 transition-colors hover:bg-amber-400";
@@ -13,6 +15,7 @@ const ctaOutline =
 
 export function HomePageContent() {
   const { t } = useAppPreferences();
+  const [finderResults, setFinderResults] = useState(false);
 
   const features = [
     {
@@ -63,8 +66,13 @@ export function HomePageContent() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-16">
-        <div className="grid gap-12 lg:grid-cols-2 lg:items-start">
-          <div>
+        <div
+          className={cn(
+            "grid gap-12 lg:items-start",
+            finderResults ? "grid-cols-1" : "lg:grid-cols-2",
+          )}
+        >
+          <div className={finderResults ? "col-span-full" : undefined}>
             <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
               {t("home.sectionTitle")}
             </h2>
@@ -72,26 +80,28 @@ export function HomePageContent() {
               {t("home.sectionSubtitle")}
             </p>
             <div id="chat" className="mt-6">
-              <AiChat />
+              <TattooFinder onResultsChange={setFinderResults} />
             </div>
           </div>
-          <div className="space-y-8 pt-4">
-            {features.map(({ icon: Icon, title, text }) => (
-              <div key={title} className="flex gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                  <Icon className="h-5 w-5" />
+          {!finderResults && (
+            <div className="space-y-8 pt-4">
+              {features.map(({ icon: Icon, title, text }) => (
+                <div key={title} className="flex gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-zinc-800 dark:text-zinc-200">
+                      {title}
+                    </h3>
+                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">
+                      {text}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-medium text-zinc-800 dark:text-zinc-200">
-                    {title}
-                  </h3>
-                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">
-                    {text}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     </div>
