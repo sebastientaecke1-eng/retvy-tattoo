@@ -113,3 +113,32 @@ export async function sendBookingNotificationPro(
     tags: ["booking-notification-pro"],
   });
 }
+
+function bookingCancellationProContent(data: BookingEmailData) {
+  const inner = `
+    <p style="margin:0 0 16px;">Un client a annulé un rendez-vous sur ton agenda Retvy.</p>
+    <div style="background:#27272a;border:1px solid #3f3f46;border-radius:12px;padding:16px;margin:16px 0;">
+      ${row("Client", data.clientName ?? "")}
+      ${row("Date & heure", `${data.date ?? ""} à ${data.time ?? ""}`.trim())}
+      ${row("Projet", data.projectSummary ?? "")}
+    </div>
+    <p style="margin:0;font-size:14px;color:#a1a1aa;">Le créneau est à nouveau disponible dans ton agenda.</p>`;
+  return {
+    subject: `RDV annulé — ${data.clientName ?? "client"}`,
+    html: layout("Rendez-vous annulé", inner),
+    text: `Annulation : ${data.clientName} — ${data.date} à ${data.time}`,
+  };
+}
+
+export async function sendBookingCancellationPro(
+  data: BookingEmailData & { proEmail: string },
+) {
+  const { subject, html, text } = bookingCancellationProContent(data);
+  return sendBrevoEmail({
+    to: [{ email: data.proEmail }],
+    subject,
+    htmlContent: html,
+    textContent: text,
+    tags: ["booking-cancellation-pro"],
+  });
+}
