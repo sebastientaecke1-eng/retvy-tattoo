@@ -1,10 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, ExternalLink, Loader2, X } from "lucide-react";
-import type { ClientBooking } from "@/lib/client/bookings";
+import {
+  canClientCancelBooking,
+  type ClientBooking,
+} from "@/lib/client/bookings";
 import {
   formatBookingDate,
   formatBookingTime,
@@ -19,10 +22,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-function isBookingPast(bookingDate: string): boolean {
-  return new Date(bookingDate).getTime() < Date.now();
-}
 
 export function ClientBookingsList({
   bookings,
@@ -263,12 +262,25 @@ function ClientBookingItem({
   onPay: () => void;
   onRequestCancel: () => void;
 }) {
-  const status = getBookingStatusMeta(booking.status);
-  const cancelled = booking.status === "cancelled";
-  const past = isBookingPast(booking.booking_date);
-  const canCancel = !cancelled && !past;
+  const status =
+    getBookingStatusMeta(booking.status as ClientBooking["status"]) ??
+    getBookingStatusMeta("pending");
+  const cancelled = String(booking.status).toLowerCase() === "cancelled";
+  const canCancel = canClientCancelBooking(booking);
   const showPay =
     !cancelled && !booking.deposit_paid && booking.deposit_amount > 0;
+
+  useEffect(() => {
+    console.log("[ClientBookingItem]", {
+      id: booking.id,
+      status: booking.status,
+      booking_date: booking.booking_date,
+      bookingMs: new Date(booking.booking_date).getTime(),
+      nowMs: Date.now(),
+      canCancel,
+      showPay,
+    });
+  }, [booking.id, booking.status, booking.booking_date, canCancel, showPay]);
 
   return (
     <li className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
@@ -313,27 +325,7 @@ function ClientBookingItem({
         )}
       </div>
 
-      <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-        {booking.deposit_paid ? (
-          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
-            <Check className="h-4 w-4" />
-            Payé
-          </span>
-        ) : showPay ? (
-          <>
-            <span className="text-xs uppercase tracking-wide text-zinc-500">
-              Acompte en attente
-            </span>
-            <Button size="sm" disabled={paying || cancelling} onClick={onPay}>
-              {paying ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                `Payer l'acompte — ${booking.deposit_amount} €`
-              )}
-            </Button>
-          </>
-        ) : null}
-
+      <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[200px] sm:items-end">
         {canCancel && (
           <Button
             type="button"
@@ -341,7 +333,7 @@ function ClientBookingItem({
             variant="outline"
             disabled={paying || cancelling}
             onClick={onRequestCancel}
-            className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+            className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10 sm:w-auto"
           >
             {cancelling ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -350,6 +342,31 @@ function ClientBookingItem({
             )}
           </Button>
         )}
+
+        {booking.deposit_paid ? (
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400 sm:justify-end">
+            <Check className="h-4 w-4" />
+            Payé
+          </span>
+        ) : showPay ? (
+          <div className="flex w-full flex-col gap-2 sm:items-end">
+            <span className="text-xs uppercase tracking-wide text-zinc-500">
+              Acompte en attente
+            </span>
+            <Button
+              size="sm"
+              disabled={paying || cancelling}
+              onClick={onPay}
+              className="w-full sm:w-auto"
+            >
+              {paying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                `Payer l'acompte — ${booking.deposit_amount} €`
+              )}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </li>
   );

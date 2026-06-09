@@ -21,6 +21,19 @@ export type InkBookingIntake = {
   project_description: string;
 };
 
+/** Extrait un montant en euros : "~300€", "300€", "300", 300 → 300. */
+export function parseBudgetEuros(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.round(value));
+  }
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const match = trimmed.replace(/\s/g, "").match(/(\d+)/);
+  if (!match) return null;
+  return Math.max(0, parseInt(match[1], 10));
+}
+
 export function parseSizeCategory(text: string): SizeCategory {
   const t = text.toLowerCase();
   if (/petit|small|<\s*10/.test(t)) return "small";

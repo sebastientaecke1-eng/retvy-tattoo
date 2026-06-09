@@ -7,6 +7,17 @@ export type ClientBooking = Booking & {
   artist_slug: string;
 };
 
+/** RDV annulable : futur (instant UTC) et non annulé — tout statut (pending, confirmed, …). */
+export function canClientCancelBooking(booking: {
+  status: string;
+  booking_date: string;
+}): boolean {
+  if (String(booking.status).toLowerCase() === "cancelled") return false;
+  const bookingMs = new Date(booking.booking_date).getTime();
+  if (Number.isNaN(bookingMs)) return false;
+  return bookingMs > Date.now();
+}
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }

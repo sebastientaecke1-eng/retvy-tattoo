@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { sendBookingCancellationPro } from "@/lib/brevo-booking";
-import { fetchClientBookings } from "@/lib/client/bookings";
+import {
+  canClientCancelBooking,
+  fetchClientBookings,
+} from "@/lib/client/bookings";
 import {
   formatBookingDate,
   formatBookingTime,
@@ -35,18 +38,12 @@ export async function POST(
     );
   }
 
-  if (booking.status === "cancelled") {
-    return NextResponse.json(
-      { error: "Ce rendez-vous est déjà annulé" },
-      { status: 400 },
-    );
-  }
-
-  if (new Date(booking.booking_date).getTime() < Date.now()) {
-    return NextResponse.json(
-      { error: "Impossible d'annuler un rendez-vous passé" },
-      { status: 400 },
-    );
+  if (!canClientCancelBooking(booking)) {
+    const reason =
+      String(booking.status).toLowerCase() === "cancelled"
+        ? "Ce rendez-vous est déjà annulé"
+        : "Impossible d'annuler un rendez-vous passé";
+    return NextResponse.json({ error: reason }, { status: 400 });
   }
 
   const { error: updateError } = await admin

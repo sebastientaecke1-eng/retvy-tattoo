@@ -18,8 +18,8 @@ import {
   parseSizeCategory,
   resolveBookingSlot,
 } from "@/lib/pro/ink-booking";
-import { computeDepositFromSettings } from "@/lib/pro/compute-deposit";
-import { parseRulesFromDb } from "@/lib/pro/deposit-settings";
+import { computeProDepositEur } from "@/lib/pro/compute-deposit";
+import { parseBudgetEuros } from "@/lib/pro/ink-booking";
 import { styleLabel } from "@/lib/pro/public-profile";
 import { fetchPublicProProfileBySlug } from "@/lib/pro/public-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -202,7 +202,10 @@ export async function POST(
           style: z.string(),
           zone: z.string(),
           size: z.string(),
-          budget: z.coerce.number().positive(),
+          budget: z.preprocess(
+            (val) => parseBudgetEuros(val) ?? val,
+            z.coerce.number().int().min(1).max(50000),
+          ),
           slot_date: z.string(),
           slot_time: z.string(),
           client_name: z.string(),
@@ -242,27 +245,23 @@ export async function POST(
             });
 
             const admin = createAdminClient();
-            const { data: depositRow, error: depositError } = await admin
-              .from("pro_deposit_settings")
-              .select("deposit_type, cancellation_policy, rules")
-              .eq("user_id", proUserId)
-              .maybeSingle();
+            const budgetEur =
+              parseBudgetEuros(input.budget) ??
+              Math.round(Number(input.budget));
+
+            const [{ data: depositRow, error: depositError }, deposit_amount] =
+              await Promise.all([
+                admin
+                  .from("pro_deposit_settings")
+                  .select("deposit_type, cancellation_policy, rules")
+                  .eq("user_id", proUserId)
+                  .maybeSingle(),
+                computeProDepositEur(admin, proUserId, budgetEur),
+              ]);
 
             if (depositError) {
               console.error("[ink/chat] pro_deposit_settings", depositError.message);
             }
-
-            const depositSettings = depositRow
-              ? {
-                  deposit_type: depositRow.deposit_type,
-                  rules: parseRulesFromDb(depositRow.rules),
-                }
-              : undefined;
-
-            const deposit_amount = computeDepositFromSettings(
-              price.min,
-              depositSettings,
-            );
 
             return {
               artist_name: profile.artist_name,
@@ -271,7 +270,7 @@ export async function POST(
               zone: input.zone,
               size: input.size,
               size_category,
-              budget: input.budget,
+              budget: budgetEur,
               slot_date: resolved.slot_date,
               slot_time: resolved.slot_time,
               duration_minutes,
@@ -284,7 +283,7 @@ export async function POST(
                 style: input.style,
                 zone: input.zone,
                 size: input.size,
-                budget: input.budget,
+                budget: budgetEur,
                 reference_note: input.reference_note ?? null,
               }),
               price_estimate: price,

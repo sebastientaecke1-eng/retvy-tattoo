@@ -5,9 +5,8 @@ import {
   proposeAvailableSlots,
 } from "@/lib/pro/availability";
 import { resolveBookingSlot } from "@/lib/pro/ink-booking";
-import { computeDepositFromSettings } from "@/lib/pro/compute-deposit";
+import { computeProDepositEur } from "@/lib/pro/compute-deposit";
 import { inkBookBodySchema } from "@/lib/pro/ink-booking-schema";
-import { parseRulesFromDb } from "@/lib/pro/deposit-settings";
 import { fetchPublicProProfileBySlug } from "@/lib/pro/public-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -91,20 +90,15 @@ export async function prepareInkBooking(
   }
 
   const admin = createAdminClient();
-  const { data: depositRow } = await admin
-    .from("pro_deposit_settings")
-    .select("deposit_type, cancellation_policy, rules")
-    .eq("user_id", profile.user_id)
-    .maybeSingle();
+  const [{ data: depositRow }, depositEur] = await Promise.all([
+    admin
+      .from("pro_deposit_settings")
+      .select("deposit_type, cancellation_policy, rules")
+      .eq("user_id", profile.user_id)
+      .maybeSingle(),
+    computeProDepositEur(admin, profile.user_id, body.budget),
+  ]);
 
-  const depositSettings = depositRow
-    ? {
-        deposit_type: depositRow.deposit_type,
-        rules: parseRulesFromDb(depositRow.rules),
-      }
-    : undefined;
-
-  const depositEur = computeDepositFromSettings(body.budget, depositSettings);
   const reference = `RTVY-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
   const cancellationPolicy =
     (depositRow?.cancellation_policy as PreparedInkBooking["cancellationPolicy"]) ??
