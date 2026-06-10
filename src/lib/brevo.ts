@@ -18,7 +18,8 @@ export async function sendBrevoEmail(
 ): Promise<SendBrevoEmailResult> {
   const apiKey = process.env.BREVO_API_KEY?.trim();
   if (!apiKey) {
-    return { ok: false, error: "missing_api_key" };
+    console.error("[brevo] BREVO_API_KEY absente ou vide");
+    return { ok: false, error: "BREVO_API_KEY absente ou vide" };
   }
 
   if (!params.to.length) {
@@ -26,7 +27,7 @@ export async function sendBrevoEmail(
   }
 
   const senderEmail =
-    process.env.BREVO_SENDER_EMAIL?.trim() ?? "contact@retvy.fr";
+    process.env.BREVO_SENDER_EMAIL?.trim() ?? "contact.tattoo@retvy.fr";
   const senderName = process.env.BREVO_SENDER_NAME?.trim() ?? "Retvy";
 
   try {
@@ -49,8 +50,20 @@ export async function sendBrevoEmail(
 
     const body = await res.text();
     if (!res.ok) {
-      console.error("[brevo] send failed", res.status, body);
-      return { ok: false, error: `http_${res.status}` };
+      console.error("[brevo] send failed", {
+        status: res.status,
+        body,
+        to: params.to.map((r) => r.email),
+        tags: params.tags,
+      });
+      let detail = body;
+      try {
+        const parsed = JSON.parse(body) as { message?: string; code?: string };
+        detail = [parsed.code, parsed.message].filter(Boolean).join(": ") || body;
+      } catch {
+        // corps non-JSON
+      }
+      return { ok: false, error: detail || `HTTP ${res.status}` };
     }
 
     try {

@@ -66,15 +66,12 @@ export async function POST(
     const proEmail = proUser.user?.email;
 
     if (proEmail) {
-      const dateLabel = formatBookingDate(booking.booking_date);
-      const timeLabel = formatBookingTime(booking.booking_date);
       await sendBookingCancellationPro({
         proEmail,
         clientName: booking.client_name,
         clientEmail: booking.client_email ?? user.email,
         artistName: booking.artist_name,
-        date: dateLabel,
-        time: timeLabel,
+        dateTimeParis: `${formatBookingDate(booking.booking_date)} à ${formatBookingTime(booking.booking_date)}`,
         projectSummary: formatProjectSummary(booking),
       }).catch((err) =>
         console.error("[client/bookings/cancel] email pro", err),

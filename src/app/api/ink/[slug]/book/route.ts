@@ -7,28 +7,35 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  const { slug } = await params;
-  const rawBody = await request.json();
-  const result = await prepareInkBooking(slug, rawBody);
+  try {
+    const { slug } = await params;
+    const rawBody = await request.json();
+    const result = await prepareInkBooking(slug, rawBody);
 
-  if (!result.ok) {
-    return NextResponse.json(
-      { error: result.error },
-      { status: result.status },
-    );
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.status },
+      );
+    }
+
+    const { data } = result;
+
+    return NextResponse.json({
+      deposit: data.depositEur,
+      reference: data.reference,
+      booking_preview: {
+        booking_date: combineBookingDateTime(
+          data.body.slot_date,
+          data.body.slot_time,
+        ),
+        duration_minutes: data.body.duration_minutes,
+      },
+    });
+  } catch (error) {
+    console.error("[api/ink/book] error:", error);
+    const message =
+      error instanceof Error ? error.message : "Erreur lors de la préparation";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  const { data } = result;
-
-  return NextResponse.json({
-    deposit: data.depositEur,
-    reference: data.reference,
-    booking_preview: {
-      booking_date: combineBookingDateTime(
-        data.body.slot_date,
-        data.body.slot_time,
-      ),
-      duration_minutes: data.body.duration_minutes,
-    },
-  });
 }
