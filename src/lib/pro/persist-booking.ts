@@ -1,4 +1,5 @@
 import {
+  formatBookingDateTimeParis,
   sendBookingNotificationPro,
   sendBookingRecapClient,
   type BookingEmailData,
@@ -19,6 +20,7 @@ export type BookingMetadata = {
   style?: string;
   zone?: string;
   size?: string;
+  budget?: string;
   duration_minutes?: string | number;
   deposit_eur?: string | number;
   client_user_id?: string;
@@ -29,6 +31,14 @@ export type BookingMetadata = {
   cancellation_policy?: string;
   reference_image_url?: string;
 };
+
+async function resolveProEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  proUserId: string,
+): Promise<string | null> {
+  const { data: proUser } = await admin.auth.admin.getUserById(proUserId);
+  return proUser.user?.email ?? null;
+}
 
 export async function buildBookingEmailPayload(
   meta: BookingMetadata,
@@ -42,7 +52,7 @@ export async function buildBookingEmailPayload(
 
   const { data: pro } = await admin
     .from("pro_profiles")
-    .select("user_id, address, studio")
+    .select("user_id, artist_name, address, studio, city, postal_code")
     .eq("user_id", meta.pro_user_id)
     .maybeSingle();
 
@@ -50,6 +60,13 @@ export async function buildBookingEmailPayload(
     studioAddress = pro.studio
       ? `${pro.studio} — ${pro.address}`
       : pro.address;
+    if (pro.city) {
+      studioAddress = [studioAddress, pro.postal_code, pro.city]
+        .filter(Boolean)
+        .join(", ");
+    }
+  } else if (pro?.city) {
+    studioAddress = [pro.studio, pro.city].filter(Boolean).join(" — ");
   }
 
   const depositEur = Number(meta.deposit_eur ?? 0);
@@ -57,20 +74,23 @@ export async function buildBookingEmailPayload(
     clientEmail: meta.client_email ?? "",
     clientName: meta.client_name,
     clientPhone: meta.client_phone,
-    artistName: meta.artist_name,
+    artistName: meta.artist_name ?? pro?.artist_name ?? undefined,
     studioAddress,
-    date: meta.slot_date,
-    time: meta.slot_time,
+    dateTimeParis: formatBookingDateTimeParis(meta.slot_date, meta.slot_time),
+    style: meta.style,
+    zone: meta.zone,
+    size: meta.size,
+    budget: meta.budget,
     projectSummary: meta.project_summary,
-    deposit: depositPaid ? depositEur : "En attente (non payé)",
+    deposit: depositEur > 0 ? depositEur : undefined,
+    depositPaid,
+    cancellationPolicy: meta.cancellation_policy,
     reference: meta.reference,
   };
 
-  let proEmail: string | null = null;
-  if (pro?.user_id) {
-    const { data: proUser } = await admin.auth.admin.getUserById(pro.user_id);
-    proEmail = proUser.user?.email ?? null;
-  }
+  const proEmail = pro?.user_id
+    ? await resolveProEmail(admin, pro.user_id)
+    : null;
 
   return { bookingPayload, proEmail };
 }
@@ -157,46 +177,95 @@ export async function insertBookingFromMetadata(
   }
 }
 
-export async function fulfillDepositBooking(meta: BookingMetadata) {
+type FulfillBookingOptions = {
+  logPrefix?: string;
+};
+
+async function sendBookingEmails(
+  bookingPayload: BookingEmailData,
+  proEmail: string | null,
+  logPrefix = "[persist-booking]",
+) {
+  const clientEmail = bookingPayload.clientEmail?.trim() ?? "";
+  console.log(`${logPrefix} sending emails to:`, clientEmail || "(aucun)", proEmail ?? "(aucun)");
+
+  if (!process.env.BREVO_API_KEY?.trim()) {
+    console.error(
+      `${logPrefix} BREVO_API_KEY absente ou vide — emails non envoyés`,
+    );
+    return;
+  }
+
+  if (clientEmail) {
+    const clientResult = await sendBookingRecapClient(bookingPayload);
+    if (!clientResult.ok) {
+      console.error(`${logPrefix} email client échoué:`, clientResult.error);
+    } else {
+      console.log(`${logPrefix} email client envoyé`, clientResult.messageId ?? "");
+    }
+  } else {
+    console.warn(`${logPrefix} email client ignoré — adresse manquante`);
+  }
+
+  if (proEmail) {
+    const proResult = await sendBookingNotificationPro({
+      ...bookingPayload,
+      proEmail,
+    });
+    if (!proResult.ok) {
+      console.error(`${logPrefix} email pro échoué:`, proResult.error);
+    } else {
+      console.log(`${logPrefix} email pro envoyé`, proResult.messageId ?? "");
+    }
+  } else {
+    console.warn(`${logPrefix} email pro ignoré — adresse pro introuvable`);
+  }
+
+  console.log(`${logPrefix} emails sent`);
+}
+
+export async function fulfillDepositBooking(
+  meta: BookingMetadata,
+  opts?: FulfillBookingOptions,
+) {
+  const logPrefix = opts?.logPrefix ?? "[persist-booking/deposit]";
+
+  console.log(`${logPrefix} enregistrement booking confirmé`);
   await insertBookingFromMetadata(meta, {
     depositPaid: true,
     status: "confirmed",
   });
+  console.log(`${logPrefix} booking enregistré en base`);
 
   const { bookingPayload, proEmail } = await buildBookingEmailPayload(
     meta,
     true,
   );
 
-  if (bookingPayload.clientEmail && process.env.BREVO_API_KEY) {
-    await sendBookingRecapClient(bookingPayload).catch((err) =>
-      console.error("[persist-booking] email client", err),
-    );
-  }
-
-  if (proEmail && process.env.BREVO_API_KEY) {
-    await sendBookingNotificationPro({
-      ...bookingPayload,
-      proEmail,
-    }).catch((err) => console.error("[persist-booking] email pro", err));
-  }
+  await sendBookingEmails(bookingPayload, proEmail, logPrefix).catch((err) =>
+    console.error(`${logPrefix} emails exception:`, err),
+  );
 }
 
-export async function fulfillPendingBooking(meta: BookingMetadata) {
+export async function fulfillPendingBooking(
+  meta: BookingMetadata,
+  opts?: FulfillBookingOptions,
+) {
+  const logPrefix = opts?.logPrefix ?? "[persist-booking/defer]";
+
+  console.log(`${logPrefix} enregistrement booking pending`);
   await insertBookingFromMetadata(meta, {
     depositPaid: false,
     status: "pending",
   });
+  console.log(`${logPrefix} booking enregistré en base`);
 
   const { bookingPayload, proEmail } = await buildBookingEmailPayload(
     meta,
     false,
   );
 
-  if (proEmail && process.env.BREVO_API_KEY) {
-    await sendBookingNotificationPro({
-      ...bookingPayload,
-      proEmail,
-    }).catch((err) => console.error("[persist-booking] email pro", err));
-  }
+  await sendBookingEmails(bookingPayload, proEmail, logPrefix).catch((err) =>
+    console.error(`${logPrefix} emails exception:`, err),
+  );
 }

@@ -141,6 +141,7 @@ export function bookingMetadataFromPrepared(prepared: PreparedInkBooking) {
     style: body.style,
     zone: body.zone,
     size: body.size,
+    budget: String(body.budget),
     size_category: body.size_category,
     duration_minutes: String(body.duration_minutes),
     deposit_eur: String(prepared.depositEur),

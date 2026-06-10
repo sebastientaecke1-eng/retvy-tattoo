@@ -155,23 +155,38 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Profil introuvable" }, 404);
   }
 
-  const stripeAccountId = resolveStripeAccountId(profile as ProProfileRow);
-  if (!stripeAccountId) {
-    return jsonResponse({ error: "Tatoueur non connecté à Stripe" }, 400);
-  }
-
   const stripe = new Stripe(stripeSecret);
 
-  let connectAccount: Stripe.Account;
-  try {
-    connectAccount = await stripe.accounts.retrieve(stripeAccountId);
-  } catch (err) {
-    console.error("[stripe-deposit] retrieve account", err);
-    return jsonResponse({ error: "Tatoueur non connecté à Stripe" }, 400);
-  }
+  const candidateAccountId = resolveStripeAccountId(profile as ProProfileRow);
+  let connectAccountId: string | null = null;
 
-  if (!connectAccount.charges_enabled) {
-    return jsonResponse({ error: "Tatoueur non connecté à Stripe" }, 400);
+  if (candidateAccountId) {
+    try {
+      const connectAccount = await stripe.accounts.retrieve(candidateAccountId);
+      if (connectAccount.charges_enabled) {
+        connectAccountId = candidateAccountId;
+        console.log("[stripe-deposit] direct charge on connect account", {
+          proSlug,
+          connectAccountId,
+        });
+      } else {
+        console.warn("[stripe-deposit] connect account not ready, platform fallback", {
+          proSlug,
+          connectAccountId: candidateAccountId,
+          charges_enabled: connectAccount.charges_enabled,
+        });
+      }
+    } catch (err) {
+      console.error("[stripe-deposit] retrieve account failed, platform fallback", {
+        proSlug,
+        connectAccountId: candidateAccountId,
+        error: err instanceof Error ? err.message : err,
+      });
+    }
+  } else {
+    console.warn("[stripe-deposit] no stripe_account_id, platform checkout", {
+      proSlug,
+    });
   }
 
   const { data: depositRow } = await admin
@@ -241,41 +256,61 @@ Deno.serve(async (req) => {
   };
 
   try {
-    const session = await stripe.checkout.sessions.create(
-      {
-        mode: "payment",
-        payment_method_types: ["card"],
-        customer_email: bookingData.client_email,
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency: "eur",
-              unit_amount: amountCents,
-              product_data: {
-                name: `Acompte — ${profile.artist_name}`,
-                description: bookingData.project_description.slice(0, 250),
-              },
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: bookingData.client_email,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "eur",
+            unit_amount: amountCents,
+            product_data: {
+              name: `Acompte — ${profile.artist_name}`,
+              description: bookingData.project_description.slice(0, 250),
             },
           },
-        ],
-        success_url: `${APP_URL}/api/ink/${proSlug}/book/confirm?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${APP_URL}/ink/${proSlug}/reserver?cancel=1`,
-        metadata,
-        payment_intent_data: {
-          metadata,
         },
+      ],
+      success_url: `${APP_URL}/api/ink/${proSlug}/book/confirm?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${APP_URL}/ink/${proSlug}/reserver?cancel=1`,
+      metadata: {
+        ...metadata,
+        connect_account_id: connectAccountId ?? "",
+        payout_mode: connectAccountId ? "connect" : "platform",
       },
-      { stripeAccount: stripeAccountId },
-    );
+      payment_intent_data: {
+        metadata,
+      },
+    };
+
+    const session = connectAccountId
+      ? await stripe.checkout.sessions.create(sessionParams, {
+          stripeAccount: connectAccountId,
+        })
+      : await stripe.checkout.sessions.create(sessionParams);
 
     if (!session.url) {
       return jsonResponse({ error: "Stripe n'a pas renvoyé d'URL" }, 500);
     }
 
-    return jsonResponse({ url: session.url, reference, deposit: depositAmount });
+    console.log("[stripe-deposit] session created", {
+      proSlug,
+      reference,
+      deposit: depositAmount,
+      connectAccountId,
+      payout_mode: connectAccountId ? "connect" : "platform",
+    });
+
+    return jsonResponse({
+      url: session.url,
+      reference,
+      deposit: depositAmount,
+      payout_mode: connectAccountId ? "connect" : "platform",
+    });
   } catch (err) {
-    console.error("[stripe-deposit]", err);
+    console.error("[stripe-deposit] checkout error:", err);
     const message =
       err instanceof Error ? err.message : "Erreur Stripe Checkout";
     return jsonResponse({ error: message }, 500);

@@ -30,10 +30,9 @@
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_-i4pyt7dPuVwvkMTCukpNg_xvuUS_hG",
 
     "OPENAI_MODEL": "gpt-4o-mini",
-    "BREVO_SENDER_EMAIL": "contact@retvy.fr",
+    "BREVO_SENDER_EMAIL": "contact.tattoo@retvy.fr",
     "BREVO_SENDER_NAME": "Retvy",
-    // Définir en prod via : npx wrangler secret put BREVO_API_KEY --env=""
-    "BREVO_API_KEY": "",
+    "BREVO_API_KEY": "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",
 
     // STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET : npx wrangler secret put … --env=""
     "STRIPE_PRICE_ID": "price_1TZdVSA43PhmUn8w9ydG81MO"
@@ -50,7 +49,7 @@
         "SUPABASE_URL": "https://bzjmzjdaqkdemzahvssi.supabase.co",
         "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_-i4pyt7dPuVwvkMTCukpNg_xvuUS_hG",
         "OPENAI_MODEL": "gpt-4o-mini",
-        "BREVO_SENDER_EMAIL": "contact@retvy.fr",
+        "BREVO_SENDER_EMAIL": "contact.tattoo@retvy.fr",
         "BREVO_SENDER_NAME": "Retvy",
         // Définir en preview : npx wrangler secret put BREVO_API_KEY --env=preview
         "BREVO_API_KEY": "",
