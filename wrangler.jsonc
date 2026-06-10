@@ -32,7 +32,8 @@
     "OPENAI_MODEL": "gpt-4o-mini",
     "BREVO_SENDER_EMAIL": "contact.tattoo@retvy.fr",
     "BREVO_SENDER_NAME": "Retvy",
-    "BREVO_API_KEY": "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",
+    // Définir en prod : npx wrangler secret put BREVO_API_KEY --env=""
+    "BREVO_API_KEY": "",
 
     // STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET : npx wrangler secret put … --env=""
     "STRIPE_PRICE_ID": "price_1TZdVSA43PhmUn8w9ydG81MO"
