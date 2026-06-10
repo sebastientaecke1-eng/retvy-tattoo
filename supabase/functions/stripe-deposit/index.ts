@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const APP_URL = "https://retvy.fr";
+const PLATFORM_FEE_RATE = 0.05;
 
 type BookingData = {
   style: string;
@@ -35,11 +36,24 @@ type DepositBody = {
   bookingId?: string;
 };
 
+type ProProfileRow = {
+  user_id: string;
+  artist_name: string;
+  studio: string | null;
+  slug: string;
+  stripe_account_id: string | null;
+  stripe_connect_account_id: string | null;
+};
+
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function resolveStripeAccountId(profile: ProProfileRow): string | null {
+  return profile.stripe_account_id ?? profile.stripe_connect_account_id ?? null;
 }
 
 function parseDepositRules(raw: unknown): Array<{
@@ -133,13 +147,32 @@ Deno.serve(async (req) => {
   const { data: profile, error: profileError } = await admin
     .from("pro_profiles")
     .select(
-      "user_id, artist_name, studio, slug, stripe_connect_account_id",
+      "user_id, artist_name, studio, slug, stripe_account_id, stripe_connect_account_id",
     )
     .eq("slug", proSlug)
     .maybeSingle();
 
   if (profileError || !profile?.user_id || !profile.artist_name) {
     return jsonResponse({ error: "Profil introuvable" }, 404);
+  }
+
+  const stripeAccountId = resolveStripeAccountId(profile as ProProfileRow);
+  if (!stripeAccountId) {
+    return jsonResponse({ error: "Tatoueur non connecté à Stripe" }, 400);
+  }
+
+  const stripe = new Stripe(stripeSecret);
+
+  let connectAccount: Stripe.Account;
+  try {
+    connectAccount = await stripe.accounts.retrieve(stripeAccountId);
+  } catch (err) {
+    console.error("[stripe-deposit] retrieve account", err);
+    return jsonResponse({ error: "Tatoueur non connecté à Stripe" }, 400);
+  }
+
+  if (!connectAccount.charges_enabled) {
+    return jsonResponse({ error: "Tatoueur non connecté à Stripe" }, 400);
   }
 
   const { data: depositRow } = await admin
@@ -182,7 +215,7 @@ Deno.serve(async (req) => {
   }
 
   const amountCents = Math.max(100, Math.round(depositAmount * 100));
-  const stripe = new Stripe(stripeSecret);
+  const applicationFeeAmount = Math.round(amountCents * PLATFORM_FEE_RATE);
 
   const metadata: Record<string, string> = {
     kind: "deposit",
@@ -210,37 +243,34 @@ Deno.serve(async (req) => {
   };
 
   try {
-    const sessionParams: Stripe.Checkout.SessionCreateParams = {
-      mode: "payment",
-      payment_method_types: ["card"],
-      customer_email: bookingData.client_email,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "eur",
-            unit_amount: amountCents,
-            product_data: {
-              name: `Acompte — ${profile.artist_name}`,
-              description: bookingData.project_description.slice(0, 250),
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: bookingData.client_email,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "eur",
+              unit_amount: amountCents,
+              product_data: {
+                name: `Acompte — ${profile.artist_name}`,
+                description: bookingData.project_description.slice(0, 250),
+              },
             },
           },
-        },
-      ],
-      success_url: `${APP_URL}/api/ink/${proSlug}/book/confirm?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${APP_URL}/ink/${proSlug}/reserver?cancel=1`,
-      metadata,
-    };
-
-    if (profile.stripe_connect_account_id) {
-      sessionParams.payment_intent_data = {
-        transfer_data: { destination: profile.stripe_connect_account_id },
-        application_fee_amount: 0,
+        ],
+        success_url: `${APP_URL}/api/ink/${proSlug}/book/confirm?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${APP_URL}/ink/${proSlug}/reserver?cancel=1`,
         metadata,
-      };
-    }
-
-    const session = await stripe.checkout.sessions.create(sessionParams);
+        payment_intent_data: {
+          application_fee_amount: applicationFeeAmount,
+          metadata,
+        },
+      },
+      { stripeAccount: stripeAccountId },
+    );
 
     if (!session.url) {
       return jsonResponse({ error: "Stripe n'a pas renvoyé d'URL" }, 500);

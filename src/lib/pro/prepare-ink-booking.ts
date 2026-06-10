@@ -106,7 +106,7 @@ export async function prepareInkBooking(
 
   const { data: proRow } = await admin
     .from("pro_profiles")
-    .select("stripe_connect_account_id, studio")
+    .select("stripe_account_id, stripe_connect_account_id, studio")
     .eq("user_id", profile.user_id)
     .maybeSingle();
 
@@ -121,7 +121,8 @@ export async function prepareInkBooking(
       depositEur,
       reference,
       cancellationPolicy,
-      stripeConnectAccountId: proRow?.stripe_connect_account_id ?? null,
+      stripeConnectAccountId:
+        proRow?.stripe_account_id ?? proRow?.stripe_connect_account_id ?? null,
     },
   };
 }

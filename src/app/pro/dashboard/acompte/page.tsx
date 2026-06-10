@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { userHasProAccess } from "@/lib/auth";
 import { DepositSettingsForm } from "@/components/pro/deposit-settings-form";
+import { StripeConnectCard } from "@/components/pro/stripe-connect-card";
 import {
   DEFAULT_DEPOSIT_SETTINGS,
   parseRulesFromDb,
@@ -11,7 +12,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 
-export default async function ProDashboardAcomptePage() {
+export default async function ProDashboardAcomptePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ connect?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -55,5 +61,10 @@ export default async function ProDashboardAcomptePage() {
       }
     : DEFAULT_DEPOSIT_SETTINGS;
 
-  return <DepositSettingsForm initial={initial} />;
+  return (
+    <div className="space-y-8">
+      <StripeConnectCard connectReturn={params.connect} />
+      <DepositSettingsForm initial={initial} />
+    </div>
+  );
 }

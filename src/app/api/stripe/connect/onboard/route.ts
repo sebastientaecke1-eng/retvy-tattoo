@@ -16,7 +16,6 @@ async function resolveAccessToken(request: Request): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
-/** Compatibilité onboarding — proxy vers stripe-connect-onboard */
 export async function POST(request: Request) {
   const user = await resolveRequestUser(request);
   if (!user) {
@@ -32,6 +31,10 @@ export async function POST(request: Request) {
   const functionUrl = `${supabaseUrl}/functions/v1/stripe-connect-onboard`;
 
   try {
+    console.log("[stripe/connect/onboard] proxy → edge function", {
+      userId: user.id,
+    });
+
     const res = await fetch(functionUrl, {
       method: "POST",
       headers: {
@@ -39,12 +42,16 @@ export async function POST(request: Request) {
         apikey: getSupabaseAnonKey(),
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ userId: user.id, context: "onboarding" }),
+      body: JSON.stringify({ userId: user.id, context: "dashboard" }),
     });
 
     const data = (await res.json()) as { url?: string; error?: string };
 
     if (!res.ok) {
+      console.error("[stripe/connect/onboard] edge function error", {
+        status: res.status,
+        error: data.error,
+      });
       return NextResponse.json(
         { error: data.error ?? "Erreur Stripe Connect" },
         { status: res.status },
@@ -60,7 +67,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: data.url });
   } catch (error) {
-    console.error("[api/stripe/connect] proxy error:", error);
+    console.error("[stripe/connect/onboard] proxy error:", error);
     const message =
       error instanceof Error ? error.message : "Erreur Stripe Connect";
     return NextResponse.json({ error: message }, { status: 500 });

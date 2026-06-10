@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
+import type { StripeConnectStatus } from "@/lib/stripe/connect";
 
 async function resolveAccessToken(request: Request): Promise<string | null> {
   const authHeader = request.headers.get("Authorization");
@@ -16,8 +17,7 @@ async function resolveAccessToken(request: Request): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
-/** Compatibilité onboarding — proxy vers stripe-connect-onboard */
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const user = await resolveRequestUser(request);
   if (!user) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
@@ -29,9 +29,13 @@ export async function POST(request: Request) {
   }
 
   const supabaseUrl = getSupabaseUrl().replace(/\/$/, "");
-  const functionUrl = `${supabaseUrl}/functions/v1/stripe-connect-onboard`;
+  const functionUrl = `${supabaseUrl}/functions/v1/stripe-connect-status`;
 
   try {
+    console.log("[stripe/connect/status] proxy → edge function", {
+      userId: user.id,
+    });
+
     const res = await fetch(functionUrl, {
       method: "POST",
       headers: {
@@ -39,28 +43,27 @@ export async function POST(request: Request) {
         apikey: getSupabaseAnonKey(),
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ userId: user.id, context: "onboarding" }),
+      body: JSON.stringify({ userId: user.id }),
     });
 
-    const data = (await res.json()) as { url?: string; error?: string };
+    const data = (await res.json()) as StripeConnectStatus & { error?: string };
 
     if (!res.ok) {
+      console.error("[stripe/connect/status] edge function error", {
+        status: res.status,
+        error: data.error,
+      });
       return NextResponse.json(
         { error: data.error ?? "Erreur Stripe Connect" },
         { status: res.status },
       );
     }
 
-    if (!data.url) {
-      return NextResponse.json(
-        { error: "URL d'onboarding manquante" },
-        { status: 500 },
-      );
-    }
+    console.log("[stripe/connect/status] result:", JSON.stringify(data));
 
-    return NextResponse.json({ url: data.url });
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[api/stripe/connect] proxy error:", error);
+    console.error("[stripe/connect/status] proxy error:", error);
     const message =
       error instanceof Error ? error.message : "Erreur Stripe Connect";
     return NextResponse.json({ error: message }, { status: 500 });
