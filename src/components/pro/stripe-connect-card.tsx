@@ -125,6 +125,11 @@ export function StripeConnectCard({ connectReturn }: Props) {
             <p className="text-sm text-zinc-500">
               Connectez votre compte pour recevoir les acomptes de vos clients.
             </p>
+          ) : isActive ? (
+            <p className="text-sm text-zinc-500">
+              Les frais de transaction Stripe (environ 1,5&nbsp;% + 0,25&nbsp;€)
+              sont à la charge du professionnel.
+            </p>
           ) : null}
         </div>
 

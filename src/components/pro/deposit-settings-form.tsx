@@ -127,8 +127,8 @@ export function DepositSettingsForm({ initial }: Props) {
           Montants demandés à la réservation et politique d&apos;annulation.
         </p>
         <p className="mt-2 text-sm text-zinc-400">
-          Des frais de service de 5&nbsp;% seront prélevés sur chaque acompte
-          reçu via Retvy.
+          Les frais de transaction Stripe (environ 1,5&nbsp;% + 0,25&nbsp;€) sont
+          à la charge du professionnel.
         </p>
       </div>
 

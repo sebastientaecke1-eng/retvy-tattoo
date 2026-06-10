@@ -8,7 +8,6 @@ const corsHeaders = {
 };
 
 const APP_URL = "https://retvy.fr";
-const PLATFORM_FEE_RATE = 0.05;
 
 type BookingData = {
   style: string;
@@ -215,7 +214,6 @@ Deno.serve(async (req) => {
   }
 
   const amountCents = Math.max(100, Math.round(depositAmount * 100));
-  const applicationFeeAmount = Math.round(amountCents * PLATFORM_FEE_RATE);
 
   const metadata: Record<string, string> = {
     kind: "deposit",
@@ -265,7 +263,6 @@ Deno.serve(async (req) => {
         cancel_url: `${APP_URL}/ink/${proSlug}/reserver?cancel=1`,
         metadata,
         payment_intent_data: {
-          application_fee_amount: applicationFeeAmount,
           metadata,
         },
       },
