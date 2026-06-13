@@ -32,7 +32,7 @@ export default async function ProDashboardLayout({
   return (
     <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-6xl gap-0 px-4 py-8 md:gap-8">
       <aside className="hidden w-56 shrink-0 flex-col border-r border-zinc-900 pr-6 md:flex">
-        <p className="text-xs uppercase tracking-widest text-amber-500/80">
+        <p className="text-xs uppercase tracking-widest text-blue-500/80">
           Espace pro
         </p>
         <p className="mt-2 font-medium text-zinc-100">
@@ -47,7 +47,7 @@ export default async function ProDashboardLayout({
         <div className="mb-6 flex items-center justify-end gap-2 md:hidden">
           <Link
             href="/parametres"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-amber-400"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-blue-400"
             aria-label="Paramètres"
             title="Paramètres"
           >

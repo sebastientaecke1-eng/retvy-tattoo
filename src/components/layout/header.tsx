@@ -158,7 +158,7 @@ export function Header() {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href="/" className="text-xl font-bold tracking-tight">
-          <span className="text-amber-500">Ret</span>
+          <span className="text-blue-500">Ret</span>
           <span className="text-zinc-900 dark:text-zinc-100">vy</span>
         </Link>
         <div className="flex items-center gap-2">
@@ -172,7 +172,7 @@ export function Header() {
             <>
               <Link
                 href={resolvedDashboardPath}
-                className="inline-flex rounded-lg border border-amber-500/50 px-3 py-1.5 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-500/10 dark:text-amber-400"
+                className="inline-flex rounded-lg border border-blue-500/50 px-3 py-1.5 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-500/10 dark:text-blue-400"
               >
                 {isProUser ? "Dashboard pro" : "Mon espace"}
               </Link>
@@ -183,13 +183,13 @@ export function Header() {
             <>
               <Link
                 href="/inscription-client"
-                className="inline-flex rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-black shadow-lg shadow-amber-500/20 transition-colors hover:bg-amber-400"
+                className="inline-flex rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-semibold text-black shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-400"
               >
                 Client
               </Link>
               <Link
                 href="/pro/inscription"
-                className="inline-flex rounded-lg border border-amber-500/50 px-3 py-1.5 text-sm text-amber-600 transition-colors hover:bg-amber-500/10 dark:text-amber-400"
+                className="inline-flex rounded-lg border border-blue-500/50 px-3 py-1.5 text-sm text-blue-600 transition-colors hover:bg-blue-500/10 dark:text-blue-400"
               >
                 Pro
               </Link>

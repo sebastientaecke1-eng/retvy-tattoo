@@ -146,7 +146,7 @@ export function DepositSettingsForm({ initial }: Props) {
 
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Type d&apos;acompte
           </p>
         </CardHeader>
@@ -157,7 +157,7 @@ export function DepositSettingsForm({ initial }: Props) {
               name="deposit_type"
               checked={depositType === "fixed"}
               onChange={() => changeDepositType("fixed")}
-              className="h-4 w-4 border-zinc-600 bg-zinc-900 text-amber-500 focus:ring-amber-500/30"
+              className="h-4 w-4 border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500/30"
             />
             <span className="text-zinc-200">Montant fixe (€)</span>
           </label>
@@ -167,7 +167,7 @@ export function DepositSettingsForm({ initial }: Props) {
               name="deposit_type"
               checked={depositType === "percent"}
               onChange={() => changeDepositType("percent")}
-              className="h-4 w-4 border-zinc-600 bg-zinc-900 text-amber-500 focus:ring-amber-500/30"
+              className="h-4 w-4 border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500/30"
             />
             <span className="text-zinc-200">Pourcentage (%)</span>
           </label>
@@ -177,7 +177,7 @@ export function DepositSettingsForm({ initial }: Props) {
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
               Règles par tranche de prix
             </p>
             <p className="mt-1 text-sm text-zinc-500">
@@ -277,7 +277,7 @@ export function DepositSettingsForm({ initial }: Props) {
 
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Politique d&apos;annulation
           </p>
         </CardHeader>
@@ -292,7 +292,7 @@ export function DepositSettingsForm({ initial }: Props) {
                 name="cancellation"
                 checked={cancellation === opt.id}
                 onChange={() => setCancellation(opt.id)}
-                className="mt-0.5 h-4 w-4 border-zinc-600 bg-zinc-900 text-amber-500 focus:ring-amber-500/30"
+                className="mt-0.5 h-4 w-4 border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500/30"
               />
               <span className="text-sm text-zinc-300">{opt.label}</span>
             </label>

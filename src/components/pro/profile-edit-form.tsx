@@ -267,7 +267,7 @@ export function ProfileEditForm({
         <h1 className="text-2xl font-bold text-zinc-50">Mon profil</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Page publique :{" "}
-          <span className="font-mono text-amber-400">/ink/{initialProfile.slug}</span>
+          <span className="font-mono text-blue-400">/ink/{initialProfile.slug}</span>
         </p>
       </div>
 
@@ -285,7 +285,7 @@ export function ProfileEditForm({
 
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Photo de profil
           </p>
         </CardHeader>
@@ -301,12 +301,12 @@ export function ProfileEditForm({
                 unoptimized
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-2xl font-bold text-amber-400">
+              <div className="flex h-full items-center justify-center text-2xl font-bold text-blue-400">
                 {artistName.charAt(0) || "?"}
               </div>
             )}
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-amber-400 hover:text-amber-300">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300">
             {avatarUploading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -330,7 +330,7 @@ export function ProfileEditForm({
 
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Informations
           </p>
         </CardHeader>
@@ -381,7 +381,7 @@ export function ProfileEditForm({
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={5}
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               placeholder="Présentez votre univers, votre expérience…"
             />
           </Field>
@@ -391,7 +391,7 @@ export function ProfileEditForm({
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
               Photos du studio
             </p>
             <p className="mt-1 text-sm text-zinc-500">
@@ -402,7 +402,7 @@ export function ProfileEditForm({
             className={
               studioPhotos.length >= MAX_STUDIO_PHOTOS
                 ? "pointer-events-none inline-flex cursor-not-allowed items-center gap-2 text-sm text-zinc-600"
-                : "inline-flex cursor-pointer items-center gap-2 text-sm text-amber-400 hover:text-amber-300"
+                : "inline-flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
             }
           >
             {studioUploading ? (
@@ -461,7 +461,7 @@ export function ProfileEditForm({
 
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Styles pratiqués
           </p>
         </CardHeader>
@@ -476,7 +476,7 @@ export function ProfileEditForm({
                   onClick={() => toggleStyle(opt.id)}
                   className={
                     on
-                      ? "rounded-full border border-amber-500 bg-amber-500/15 px-3 py-1.5 text-sm font-medium text-amber-300"
+                      ? "rounded-full border border-blue-500 bg-blue-500/15 px-3 py-1.5 text-sm font-medium text-blue-300"
                       : "rounded-full border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 hover:border-zinc-600"
                   }
                 >
@@ -490,7 +490,7 @@ export function ProfileEditForm({
 
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Tarifs indicatifs (€)
           </p>
         </CardHeader>
@@ -518,7 +518,7 @@ export function ProfileEditForm({
 
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Portfolio par style
           </p>
           <p className="mt-1 text-sm text-zinc-500">
@@ -544,7 +544,7 @@ export function ProfileEditForm({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-medium text-zinc-200">{label}</h3>
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-amber-400 hover:text-amber-300">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300">
                     {uploading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (

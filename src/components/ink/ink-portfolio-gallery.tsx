@@ -38,7 +38,7 @@ export function InkPortfolioGallery({ groups }: Props) {
               onClick={() => setActiveStyle(g.style)}
               className={
                 activeGroup?.style === g.style
-                  ? "rounded-full border border-amber-500 bg-amber-500/15 px-4 py-1.5 text-sm font-medium text-amber-300"
+                  ? "rounded-full border border-blue-500 bg-blue-500/15 px-4 py-1.5 text-sm font-medium text-blue-300"
                   : "rounded-full border border-zinc-700 px-4 py-1.5 text-sm text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
               }
             >
@@ -50,7 +50,7 @@ export function InkPortfolioGallery({ groups }: Props) {
       )}
 
       {!showTabs && activeGroup && (
-        <p className="mt-4 text-sm font-medium text-amber-400/90">
+        <p className="mt-4 text-sm font-medium text-blue-400/90">
           {activeGroup.label}
         </p>
       )}
@@ -62,7 +62,7 @@ export function InkPortfolioGallery({ groups }: Props) {
               key={img.id}
               type="button"
               onClick={() => setLightboxUrl(img.image_url)}
-              className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+              className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
             >
               <Image
                 src={img.image_url}

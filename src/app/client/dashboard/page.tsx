@@ -40,7 +40,7 @@ export default async function ClientDashboardPage() {
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         <Card>
           <CardContent className="flex gap-4 pt-6">
-            <MessageSquare className="h-8 w-8 shrink-0 text-amber-400" />
+            <MessageSquare className="h-8 w-8 shrink-0 text-blue-400" />
             <div>
               <h2 className="font-medium">Qualifier un projet</h2>
               <p className="mt-1 text-sm text-zinc-500">
@@ -54,7 +54,7 @@ export default async function ClientDashboardPage() {
         </Card>
         <Card>
           <CardContent className="flex gap-4 pt-6">
-            <Search className="h-8 w-8 shrink-0 text-amber-400" />
+            <Search className="h-8 w-8 shrink-0 text-blue-400" />
             <div>
               <h2 className="font-medium">Artistes recommandés</h2>
               <p className="mt-1 text-sm text-zinc-500">

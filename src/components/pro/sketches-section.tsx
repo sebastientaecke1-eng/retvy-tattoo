@@ -172,7 +172,7 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
                 setError(null);
                 setSuccess(null);
               }}
-              className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-amber-500/50"
+              className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-blue-500/50"
             >
               {confirmedBookings.map((booking) => (
                 <option key={booking.id} value={booking.id}>
@@ -228,7 +228,7 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
             <p className="text-sm font-medium text-zinc-300">
               Upload du croquis
             </p>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-zinc-700 px-4 py-3 text-sm text-zinc-400 transition-colors hover:border-amber-500/50 hover:text-amber-400">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-zinc-700 px-4 py-3 text-sm text-zinc-400 transition-colors hover:border-blue-500/50 hover:text-blue-400">
               {uploading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -264,7 +264,7 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
                   href={selectedSketch.sketch_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-amber-400 hover:text-amber-300"
+                  className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300"
                 >
                   <ExternalLink className="h-4 w-4" />
                   Ouvrir le PDF

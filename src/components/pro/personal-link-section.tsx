@@ -97,7 +97,7 @@ export function PersonalLinkSection({ slug }: PersonalLinkSectionProps) {
             <p className="text-sm uppercase tracking-widest text-zinc-500">
               Votre lien public
             </p>
-            <p className="mt-3 break-all text-xl font-semibold text-amber-400 md:text-2xl">
+            <p className="mt-3 break-all text-xl font-semibold text-blue-400 md:text-2xl">
               {publicUrl}
             </p>
           </div>

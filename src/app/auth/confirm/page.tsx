@@ -60,7 +60,7 @@ function ConfirmContent() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-20">
-      <Link href="/" className="text-sm text-zinc-500 hover:text-amber-400">
+      <Link href="/" className="text-sm text-zinc-500 hover:text-blue-400">
         ← Retvy
       </Link>
 
@@ -82,7 +82,7 @@ function ConfirmContent() {
                 Vous êtes maintenant connecté.
               </p>
               {!checkingSession && (
-                <p className="mt-2 text-sm text-amber-400/90">
+                <p className="mt-2 text-sm text-blue-400/90">
                   Redirection dans {seconds} seconde{seconds > 1 ? "s" : ""}…
                 </p>
               )}
@@ -131,7 +131,7 @@ export default function AuthConfirmPage() {
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+          <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
         </div>
       }
     >

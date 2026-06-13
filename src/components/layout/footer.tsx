@@ -17,13 +17,13 @@ export function Footer() {
         <div className="flex gap-6 text-sm text-zinc-500">
           <Link
             href="/connexion"
-            className="hover:text-amber-600 dark:hover:text-amber-400"
+            className="hover:text-blue-600 dark:hover:text-blue-400"
           >
             {t("footer.login")}
           </Link>
           <Link
             href="/pro/inscription"
-            className="hover:text-amber-600 dark:hover:text-amber-400"
+            className="hover:text-blue-600 dark:hover:text-blue-400"
           >
             {t("footer.becomePro")}
           </Link>

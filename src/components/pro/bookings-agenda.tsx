@@ -64,7 +64,7 @@ export function BookingsAgenda({
     <Card className="border-zinc-800 bg-zinc-950/80">
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Agenda
           </p>
           <p className="mt-1 text-lg font-medium text-zinc-100">
@@ -154,7 +154,7 @@ function WeekView({
             key={day.toISOString()}
             className={`flex min-h-[400px] flex-col rounded-xl border p-3 ${
               isToday
-                ? "border-amber-500/40 bg-amber-500/5"
+                ? "border-blue-500/40 bg-blue-500/5"
                 : "border-zinc-800 bg-zinc-900/40"
             }`}
           >
@@ -164,7 +164,7 @@ function WeekView({
               </p>
               <p
                 className={`text-sm font-semibold ${
-                  isToday ? "text-amber-400" : "text-zinc-200"
+                  isToday ? "text-blue-400" : "text-zinc-200"
                 }`}
               >
                 {day.getDate()}
@@ -238,7 +238,7 @@ function MonthView({
               className={`flex min-h-[120px] flex-col rounded-xl border p-3 text-left transition-colors ${
                 inMonth
                   ? isToday
-                    ? "border-amber-500/40 bg-amber-500/5"
+                    ? "border-blue-500/40 bg-blue-500/5"
                     : "border-zinc-800/80 bg-zinc-900/30 hover:border-zinc-700"
                   : "cursor-default border-transparent bg-transparent opacity-40"
               } ${inMonth && count > 0 ? "hover:bg-zinc-900/50" : ""}`}
@@ -246,13 +246,13 @@ function MonthView({
               <div className="flex items-start justify-between gap-1">
                 <p
                   className={`text-sm font-semibold ${
-                    isToday ? "text-amber-400" : "text-zinc-300"
+                    isToday ? "text-blue-400" : "text-zinc-300"
                   }`}
                 >
                   {day.getDate()}
                 </p>
                 {inMonth && count > 0 && (
-                  <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400">
+                  <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400">
                     {count} RDV
                   </span>
                 )}
@@ -287,7 +287,7 @@ function AgendaBookingChip({
       onClick={onClick}
       className="w-full shrink-0 rounded-lg border border-zinc-800 bg-zinc-950/80 p-3 text-left transition-colors hover:border-zinc-600 hover:bg-zinc-900"
     >
-      <p className="text-sm font-semibold text-amber-400">
+      <p className="text-sm font-semibold text-blue-400">
         {formatBookingTimeCompact(booking.booking_date)}
       </p>
       <p className="mt-1.5 text-sm font-medium text-zinc-100">
@@ -320,7 +320,7 @@ function ToggleBtn({
       onClick={onClick}
       className={
         active
-          ? "rounded-md bg-amber-500/15 px-3 py-1.5 text-sm font-medium text-amber-400"
+          ? "rounded-md bg-blue-500/15 px-3 py-1.5 text-sm font-medium text-blue-400"
           : "rounded-md px-3 py-1.5 text-sm text-zinc-500 hover:text-zinc-300"
       }
     >

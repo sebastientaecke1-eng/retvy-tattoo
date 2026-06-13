@@ -115,15 +115,15 @@ export function AiChat({ artistSlug }: { artistSlug?: string }) {
 
   return (
     <div>
-      <Card id="chat" className="overflow-hidden border-amber-500/10">
+      <Card id="chat" className="overflow-hidden border-blue-500/10">
         <CardContent className="p-0">
           <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
-            <Sparkles className="h-4 w-4 text-amber-400" />
+            <Sparkles className="h-4 w-4 text-blue-400" />
             <span className="text-sm font-medium text-zinc-200">
               Assistant projet Retvy
             </span>
             {matchResult && !matchResult.noArtistsFound && matchResult.artists.length > 0 && (
-              <span className="ml-auto text-[10px] uppercase tracking-widest text-amber-400">
+              <span className="ml-auto text-[10px] uppercase tracking-widest text-blue-400">
                 Match trouvé
               </span>
             )}
@@ -144,7 +144,7 @@ export function AiChat({ artistSlug }: { artistSlug?: string }) {
                   className={cn(
                     "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                     m.role === "user"
-                      ? "ml-auto bg-amber-500/15 text-amber-50"
+                      ? "ml-auto bg-blue-500/15 text-blue-50"
                       : "bg-zinc-900 text-zinc-300",
                   )}
                 >
@@ -176,7 +176,7 @@ export function AiChat({ artistSlug }: { artistSlug?: string }) {
                   key={chip}
                   type="button"
                   onClick={() => handleSend(chip)}
-                  className="cursor-pointer rounded-full border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-amber-500/50 hover:text-amber-300"
+                  className="cursor-pointer rounded-full border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-blue-500/50 hover:text-blue-300"
                 >
                   {chip}
                 </button>
@@ -201,12 +201,12 @@ export function AiChat({ artistSlug }: { artistSlug?: string }) {
                   : "Décrivez votre idée de tatouage…"
               }
               disabled={isLoading}
-              className="flex-1 rounded-xl border border-zinc-800 bg-black px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 focus:outline-none disabled:opacity-50"
+              className="flex-1 rounded-xl border border-zinc-800 bg-black px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/50 focus:outline-none disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={isLoading || !input.trim()}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-black transition-transform hover:bg-amber-400 disabled:opacity-30"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 text-black transition-transform hover:bg-blue-400 disabled:opacity-30"
               aria-label="Envoyer"
             >
               {isLoading ? (

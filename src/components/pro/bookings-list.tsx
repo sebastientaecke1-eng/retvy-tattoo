@@ -37,7 +37,7 @@ export function BookingsList({
   return (
     <Card className="border-zinc-800 bg-zinc-950/80">
       <CardHeader>
-        <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+        <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
           Liste des RDV
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -48,7 +48,7 @@ export function BookingsList({
               onClick={() => onFilterChange(f.id)}
               className={
                 filter === f.id
-                  ? "rounded-full border border-amber-500/50 bg-amber-500/10 px-3 py-1 text-sm font-medium text-amber-400"
+                  ? "rounded-full border border-blue-500/50 bg-blue-500/10 px-3 py-1 text-sm font-medium text-blue-400"
                   : "rounded-full border border-zinc-800 px-3 py-1 text-sm text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
               }
             >
@@ -129,7 +129,7 @@ function BookingListItem({
             className={
               booking.deposit_paid
                 ? "text-sm font-medium text-emerald-400"
-                : "text-sm font-medium text-amber-400"
+                : "text-sm font-medium text-blue-400"
             }
           >
             {booking.deposit_amount > 0

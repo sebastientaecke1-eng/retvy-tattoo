@@ -87,7 +87,7 @@ export function InkStudioSection({
             href={mapsOpenUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-black shadow-lg shadow-amber-500/25 transition-colors hover:bg-amber-400 sm:w-auto"
+            className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-500 px-5 py-3 text-sm font-semibold text-black shadow-lg shadow-blue-500/25 transition-colors hover:bg-blue-400 sm:w-auto"
           >
             Ouvrir dans Google Maps
           </Link>
