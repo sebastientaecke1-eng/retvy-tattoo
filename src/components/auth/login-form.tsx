@@ -100,14 +100,14 @@ export function LoginForm() {
           {t("login.noAccount")}{" "}
           <Link
             href="/inscription-client"
-            className="text-amber-600 hover:underline dark:text-amber-400"
+            className="text-blue-600 hover:underline dark:text-blue-400"
           >
             {t("nav.client")}
           </Link>
           {" · "}
           <Link
             href="/pro/inscription"
-            className="text-amber-600 hover:underline dark:text-amber-400"
+            className="text-blue-600 hover:underline dark:text-blue-400"
           >
             {t("nav.pro")}
           </Link>

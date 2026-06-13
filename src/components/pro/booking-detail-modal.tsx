@@ -36,7 +36,7 @@ export function BookingDetailModal({ booking, onClose }: Props) {
       >
         <div className="flex items-start justify-between border-b border-zinc-800 px-6 py-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
               Fiche RDV
             </p>
             <h2
@@ -48,7 +48,7 @@ export function BookingDetailModal({ booking, onClose }: Props) {
             <p className="mt-1 text-sm text-zinc-500">
               {formatBookingDate(booking.booking_date)}
             </p>
-            <p className="mt-0.5 text-sm font-medium text-amber-400/90">
+            <p className="mt-0.5 text-sm font-medium text-blue-400/90">
               {formatBookingTimeRange(
                 booking.booking_date,
                 booking.duration_minutes,
@@ -82,7 +82,7 @@ export function BookingDetailModal({ booking, onClose }: Props) {
             <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
               Projet
             </h3>
-            <p className="mt-2 text-sm font-medium text-amber-400/90">
+            <p className="mt-2 text-sm font-medium text-blue-400/90">
               {formatProjectSummary(booking)}
             </p>
             {booking.project_description && (

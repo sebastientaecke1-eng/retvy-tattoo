@@ -46,7 +46,7 @@ const STATUS_META: Record<
   },
   pending: {
     label: "En attente",
-    className: "border-amber-500/40 bg-amber-500/10 text-amber-400",
+    className: "border-blue-500/40 bg-blue-500/10 text-blue-400",
   },
   cancelled: {
     label: "Annulé",

@@ -51,7 +51,7 @@ export default async function InkProfilePage({ params }: PageProps) {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
       <div className="flex flex-col gap-8 md:flex-row">
-        <div className="relative mx-auto h-48 w-48 shrink-0 overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-amber-500/20 to-zinc-900 md:mx-0">
+        <div className="relative mx-auto h-48 w-48 shrink-0 overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-blue-500/20 to-zinc-900 md:mx-0">
           {profile.avatar_url ? (
             <Image
               key={profile.avatar_url}
@@ -64,7 +64,7 @@ export default async function InkProfilePage({ params }: PageProps) {
               unoptimized
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-4xl font-bold text-amber-400">
+            <div className="flex h-full items-center justify-center text-4xl font-bold text-blue-400">
               {profile.artist_name.charAt(0)}
             </div>
           )}
@@ -78,7 +78,7 @@ export default async function InkProfilePage({ params }: PageProps) {
           )}
           {cityLine && (
             <p className="mt-2 flex items-center justify-center gap-2 text-zinc-500 md:justify-start">
-              <MapPin className="h-4 w-4 shrink-0 text-amber-400" />
+              <MapPin className="h-4 w-4 shrink-0 text-blue-400" />
               {cityLine}
             </p>
           )}
@@ -89,7 +89,7 @@ export default async function InkProfilePage({ params }: PageProps) {
                   key={style}
                   className="inline-flex items-center gap-1 rounded-full border border-zinc-700 px-3 py-1 text-sm text-zinc-300"
                 >
-                  <Palette className="h-3 w-3 text-amber-500" />
+                  <Palette className="h-3 w-3 text-blue-500" />
                   {styleLabel(style)}
                 </span>
               ))}
@@ -123,7 +123,7 @@ export default async function InkProfilePage({ params }: PageProps) {
       />
 
       <p className="mt-12 text-center text-sm text-zinc-600">
-        <Link href="/" className="text-amber-400 hover:underline">
+        <Link href="/" className="text-blue-400 hover:underline">
           ← Retour à Retvy
         </Link>
       </p>
@@ -134,7 +134,7 @@ export default async function InkProfilePage({ params }: PageProps) {
 function DemoProfile() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
-      <p className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2 text-center text-sm text-amber-400">
+      <p className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-2 text-center text-sm text-blue-400">
         Profil de démonstration — exemple /ink/demo
       </p>
       <h1 className="text-3xl font-bold">Alex Ink</h1>

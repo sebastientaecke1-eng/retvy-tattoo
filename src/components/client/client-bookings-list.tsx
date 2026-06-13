@@ -288,7 +288,7 @@ function ClientBookingItem({
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/ink/${booking.artist_slug}`}
-            className="font-medium text-amber-400 hover:text-amber-300"
+            className="font-medium text-blue-400 hover:text-blue-300"
           >
             {booking.artist_name}
           </Link>

@@ -23,7 +23,7 @@ export default async function ClientDashboardLayout({
     <div className="mx-auto max-w-5xl px-4 py-12">
       <div className="flex items-center justify-between border-b border-zinc-900 pb-6">
         <div>
-          <p className="text-xs uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs uppercase tracking-widest text-blue-500/80">
             Espace client
           </p>
           <p className="mt-1 text-lg font-medium">{name}</p>
@@ -31,13 +31,13 @@ export default async function ClientDashboardLayout({
         <div className="flex items-center gap-4">
           <Link
             href="/parametres"
-            className="text-sm text-zinc-600 hover:text-amber-600 dark:text-zinc-500 dark:hover:text-amber-400"
+            className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400"
           >
             Paramètres
           </Link>
           <Link
             href="/"
-            className="text-sm text-zinc-600 hover:text-amber-600 dark:text-zinc-500 dark:hover:text-amber-400"
+            className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400"
           >
             Accueil
           </Link>

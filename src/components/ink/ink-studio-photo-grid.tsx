@@ -24,7 +24,7 @@ export function InkStudioPhotoGrid({ photos }: Props) {
             key={photo.id}
             type="button"
             onClick={() => setLightboxUrl(photo.image_url)}
-            className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+            className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
           >
             <Image
               src={photo.image_url}

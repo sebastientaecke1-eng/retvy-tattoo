@@ -257,7 +257,7 @@ export function AvailabilitiesForm({
 
   if (profileStyles.length === 0) {
     return (
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-6 text-sm text-amber-200">
+      <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-6 text-sm text-blue-200">
         Définissez au moins un style dans{" "}
         <a href="/pro/dashboard/profil" className="underline">
           Mon profil
@@ -290,7 +290,7 @@ export function AvailabilitiesForm({
 
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Horaires de travail
           </p>
         </CardHeader>
@@ -308,7 +308,7 @@ export function AvailabilitiesForm({
                       type="checkbox"
                       checked={state.active}
                       onChange={() => toggleDay(day.id)}
-                      className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-amber-500 focus:ring-amber-500/30"
+                      className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500/30"
                     />
                     <span className="font-medium text-zinc-200">{day.label}</span>
                   </label>
@@ -376,7 +376,7 @@ export function AvailabilitiesForm({
 
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Dates bloquées
           </p>
           <p className="mt-1 text-sm text-zinc-500">
@@ -454,7 +454,7 @@ export function AvailabilitiesForm({
                     onClick={() => toggleBlockedOnCalendar(cell.iso!)}
                     className={
                       blockedDates.includes(cell.iso)
-                        ? "rounded-lg bg-amber-500/25 py-2 text-sm font-medium text-amber-300 ring-1 ring-amber-500/50"
+                        ? "rounded-lg bg-blue-500/25 py-2 text-sm font-medium text-blue-300 ring-1 ring-blue-500/50"
                         : "rounded-lg py-2 text-sm text-zinc-400 hover:bg-zinc-800"
                     }
                   >
@@ -496,7 +496,7 @@ export function AvailabilitiesForm({
 
       <Card className="border-zinc-800 bg-zinc-950/80">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Estimation de durée par style
           </p>
           <p className="mt-1 text-sm text-zinc-500">

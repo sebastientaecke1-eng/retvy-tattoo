@@ -98,7 +98,7 @@ export default function InscriptionClientPage() {
     <div className="mx-auto max-w-md px-4 py-16">
       <Link
         href="/"
-        className="text-sm text-zinc-600 hover:text-amber-600 dark:text-zinc-500 dark:hover:text-amber-400"
+        className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400"
       >
         {t("signup.back")}
       </Link>
@@ -164,7 +164,7 @@ export default function InscriptionClientPage() {
               </p>
             )}
             {accountExists && (
-              <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+              <p className="rounded-lg bg-blue-500/10 px-3 py-2 text-sm text-blue-300">
                 {t("signup.accountExists")}{" "}
                 <Link href="/connexion" className="underline">
                   {t("signup.signIn")}
@@ -183,7 +183,7 @@ export default function InscriptionClientPage() {
             <p className="text-center text-sm text-zinc-600 dark:text-zinc-500">
               <Link
                 href="/connexion"
-                className="text-amber-600 hover:underline dark:text-amber-400"
+                className="text-blue-600 hover:underline dark:text-blue-400"
               >
                 {t("signup.already")}
               </Link>

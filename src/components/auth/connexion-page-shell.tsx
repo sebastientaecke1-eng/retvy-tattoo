@@ -11,7 +11,7 @@ export function ConnexionPageShell() {
     <div className="mx-auto max-w-md px-4 py-16">
       <Link
         href="/"
-        className="text-sm text-zinc-600 hover:text-amber-600 dark:text-zinc-500 dark:hover:text-amber-400"
+        className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400"
       >
         {t("login.back")}
       </Link>

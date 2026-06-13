@@ -9,9 +9,9 @@ import { useAppPreferences } from "@/components/providers/app-preferences-provid
 import { cn } from "@/lib/utils";
 
 const ctaPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-base font-semibold text-black shadow-lg shadow-amber-500/20 transition-colors hover:bg-amber-400";
+  "inline-flex items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 py-3 text-base font-semibold text-black shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-400";
 const ctaOutline =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/50 px-6 py-3 text-base text-amber-600 transition-colors hover:bg-amber-500/10 dark:text-amber-400";
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/50 px-6 py-3 text-base text-blue-600 transition-colors hover:bg-blue-500/10 dark:text-blue-400";
 
 export function HomePageContent() {
   const { t } = useAppPreferences();
@@ -40,13 +40,13 @@ export function HomePageContent() {
       <section className="relative overflow-hidden border-b border-zinc-200 dark:border-zinc-900">
         <div className="gradient-gold pointer-events-none absolute inset-0" />
         <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
-          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/5 px-3 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/5 px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400">
             <Sparkles className="h-3.5 w-3.5" />
             {t("home.badge")}
           </p>
           <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-6xl">
             {t("home.title")}{" "}
-            <span className="text-amber-500 dark:text-amber-400">
+            <span className="text-blue-500 dark:text-blue-400">
               {t("home.titleHighlight")}
             </span>
           </h1>
@@ -87,7 +87,7 @@ export function HomePageContent() {
             <div className="space-y-8 pt-4">
               {features.map(({ icon: Icon, title, text }) => (
                 <div key={title} className="flex gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
                     <Icon className="h-5 w-5" />
                   </div>
                   <div>

@@ -10,7 +10,7 @@ export default function ProInscriptionPage() {
         Compte, profil public, abonnement pro (30 jours offerts) et paiements
       </p>
       <p className="mt-4 text-center text-sm">
-        <Link href="/connexion?next=/pro/inscription" className="text-amber-400 hover:underline">
+        <Link href="/connexion?next=/pro/inscription" className="text-blue-400 hover:underline">
           Déjà un compte ? Connectez-vous
         </Link>
       </p>

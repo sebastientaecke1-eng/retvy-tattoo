@@ -712,7 +712,7 @@ export function OnboardingWizard() {
             {profilePath ? (
               <>
                 Votre profil{" "}
-                <span className="text-amber-400">{profilePath}</span> est prêt.
+                <span className="text-blue-400">{profilePath}</span> est prêt.
               </>
             ) : (
               "Votre espace pro est prêt."
@@ -722,7 +722,7 @@ export function OnboardingWizard() {
             {profilePath ? (
               <Link
                 href={profilePath}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/50 px-5 py-2.5 text-sm text-amber-400 transition-colors hover:bg-amber-500/10"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/50 px-5 py-2.5 text-sm text-blue-400 transition-colors hover:bg-blue-500/10"
               >
                 Voir mon profil
               </Link>
@@ -744,15 +744,15 @@ export function OnboardingWizard() {
             <div
               key={label}
               className={`flex flex-1 flex-col items-center gap-1 text-xs ${
-                i <= step ? "text-amber-400" : "text-zinc-600"
+                i <= step ? "text-blue-400" : "text-zinc-600"
               }`}
             >
               <span
                 className={`flex h-8 w-8 items-center justify-center rounded-full border ${
                   i < step
-                    ? "border-amber-500 bg-amber-500/20"
+                    ? "border-blue-500 bg-blue-500/20"
                     : i === step
-                      ? "border-amber-500"
+                      ? "border-blue-500"
                       : "border-zinc-700"
                 }`}
               >
@@ -765,12 +765,12 @@ export function OnboardingWizard() {
       </CardHeader>
       <CardContent className="space-y-6">
         {envError && (
-          <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+          <p className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-blue-300">
             {envError}
           </p>
         )}
         {emailPending && (
-          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+          <p className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-700 dark:text-blue-300">
             Un email de confirmation vous a été envoyé par Supabase. Validez-le
             avant l&apos;étape finale (création du profil).
           </p>
@@ -853,7 +853,7 @@ export function OnboardingWizard() {
                 onClick={() => toggleStyle(style)}
                 className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
                   styles.includes(style)
-                    ? "border-amber-500 bg-amber-500/15 text-amber-300"
+                    ? "border-blue-500 bg-blue-500/15 text-blue-300"
                     : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
                 }`}
               >
@@ -890,8 +890,8 @@ export function OnboardingWizard() {
         {step === 4 && (
           <div className="space-y-4">
             {abonnementNeedsReconnect ? (
-              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-4">
-                <p className="text-sm text-amber-200">
+              <div className="rounded-xl border border-blue-500/40 bg-blue-500/10 p-4 space-y-4">
+                <p className="text-sm text-blue-200">
                   Session expirée ou introuvable. Reconnectez-vous avec le même
                   email et mot de passe pour enregistrer votre carte.
                 </p>
@@ -950,7 +950,7 @@ export function OnboardingWizard() {
           <div className="space-y-4">
             <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-5">
               <div className="flex gap-4">
-                <Banknote className="h-6 w-6 shrink-0 text-amber-400" />
+                <Banknote className="h-6 w-6 shrink-0 text-blue-400" />
                 <div>
                   <h3 className="font-medium">Stripe Connect</h3>
                   <p className="mt-1 text-sm text-zinc-500">

@@ -44,7 +44,7 @@ export default function ParametresPage() {
   if (!mounted) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-pulse rounded-full bg-amber-500/30" />
+        <div className="h-8 w-8 animate-pulse rounded-full bg-blue-500/30" />
       </div>
     );
   }
@@ -53,7 +53,7 @@ export default function ParametresPage() {
     <div className="mx-auto max-w-lg px-4 py-16">
       <Link
         href="/"
-        className="text-sm text-zinc-600 hover:text-amber-600 dark:text-zinc-500 dark:hover:text-amber-400"
+        className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400"
       >
         ← Retvy
       </Link>
@@ -71,7 +71,7 @@ export default function ParametresPage() {
 
       <Card className="mt-8 border-zinc-200 dark:border-zinc-800">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-500/80">
             {t("settings.appearance")}
           </p>
         </CardHeader>
@@ -93,7 +93,7 @@ export default function ParametresPage() {
 
       <Card className="mt-4 border-zinc-200 dark:border-zinc-800">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-500/80">
             {t("settings.language")}
           </p>
         </CardHeader>
@@ -150,7 +150,7 @@ function ThemeOption({
       onClick={onClick}
       className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
         active
-          ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+          ? "border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300"
           : "border-zinc-200 text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-600"
       }`}
     >
@@ -177,7 +177,7 @@ function LocaleOption({
       onClick={onClick}
       className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
         active
-          ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+          ? "border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300"
           : "border-zinc-200 text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-600"
       }`}
     >

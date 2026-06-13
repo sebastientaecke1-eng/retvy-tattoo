@@ -273,15 +273,15 @@ export function InkBookingFlow({ slug, artistName }: Props) {
   return (
     <div className="space-y-6">
       {cancelled && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
+        <p className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-200">
           Paiement annulé — vous pouvez reprendre la conversation ou modifier le créneau.
         </p>
       )}
 
-      <Card className="overflow-hidden border-amber-500/20 bg-zinc-950/90">
+      <Card className="overflow-hidden border-blue-500/20 bg-zinc-950/90">
         <CardContent className="p-0">
           <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
-            <Sparkles className="h-4 w-4 text-amber-400" />
+            <Sparkles className="h-4 w-4 text-blue-400" />
             <span className="text-sm font-medium text-zinc-200">
               Réservation avec {artistName}
             </span>
@@ -302,7 +302,7 @@ export function InkBookingFlow({ slug, artistName }: Props) {
                   className={cn(
                     "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                     m.role === "user"
-                      ? "ml-auto bg-amber-500/15 text-amber-50"
+                      ? "ml-auto bg-blue-500/15 text-blue-50"
                       : "bg-zinc-900 text-zinc-300",
                   )}
                 >
@@ -332,7 +332,7 @@ export function InkBookingFlow({ slug, artistName }: Props) {
 
           {showReferenceUpload && (
             <div className="border-t border-zinc-800 px-4 py-3">
-              <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-amber-400 hover:text-amber-300">
+              <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300">
                 {referenceUploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -370,12 +370,12 @@ export function InkBookingFlow({ slug, artistName }: Props) {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Votre réponse…"
                 disabled={isLoading}
-                className="flex-1 rounded-xl border border-zinc-800 bg-black px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 focus:outline-none disabled:opacity-50"
+                className="flex-1 rounded-xl border border-zinc-800 bg-black px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/50 focus:outline-none disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-30"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 text-black hover:bg-blue-400 disabled:opacity-30"
                 aria-label="Envoyer"
               >
                 {isLoading ? (
@@ -390,7 +390,7 @@ export function InkBookingFlow({ slug, artistName }: Props) {
       </Card>
 
       {intake && (
-        <Card className="border-amber-500/30 bg-zinc-950/90">
+        <Card className="border-blue-500/30 bg-zinc-950/90">
           <CardContent className="space-y-4 p-6">
             <h2 className="text-lg font-semibold text-zinc-50">
               Récapitulatif
@@ -413,16 +413,16 @@ export function InkBookingFlow({ slug, artistName }: Props) {
               />
             </dl>
             <p className="text-sm text-zinc-400">{intake.project_description}</p>
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-              <p className="text-xs uppercase tracking-widest text-amber-500/80">
+            <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+              <p className="text-xs uppercase tracking-widest text-blue-500/80">
                 Acompte à régler
               </p>
-              <p className="mt-1 text-2xl font-bold text-amber-400">
+              <p className="mt-1 text-2xl font-bold text-blue-400">
                 {intake.deposit_amount} €
               </p>
             </div>
             {!intake.slot_available && (
-              <p className="text-sm text-amber-300">
+              <p className="text-sm text-blue-300">
                 Attention : le créneau choisi pourrait ne plus être disponible. Le
                 paiement sera refusé si le créneau est pris entre-temps.
               </p>

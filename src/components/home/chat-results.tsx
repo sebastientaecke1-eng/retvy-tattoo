@@ -55,7 +55,7 @@ export function ChatResults({ result }: { result: MatchResult }) {
   if (noArtistsFound || artists.length === 0) {
     return (
       <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-8 text-center animate-in fade-in duration-500">
-        <p className="text-xs uppercase tracking-widest text-amber-500">
+        <p className="text-xs uppercase tracking-widest text-blue-500">
           Résultats
         </p>
         <h2 className="mt-2 text-xl font-bold text-zinc-100">
@@ -83,7 +83,7 @@ export function ChatResults({ result }: { result: MatchResult }) {
     <div className="mt-8 space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 border-b border-zinc-800 pb-6 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-widest text-amber-500">
+          <p className="text-xs uppercase tracking-widest text-blue-500">
             Résultats
           </p>
           <h2 className="mt-2 text-2xl font-bold">
@@ -93,12 +93,12 @@ export function ChatResults({ result }: { result: MatchResult }) {
             {summary.style} · {summary.bodyZone} · {summary.size}
           </p>
           {scopeHint && (
-            <p className="mt-2 text-sm text-amber-400/90">{scopeHint}</p>
+            <p className="mt-2 text-sm text-blue-400/90">{scopeHint}</p>
           )}
         </div>
         <div className="text-right">
           <p className="text-xs text-zinc-500">Estimation</p>
-          <p className="text-2xl font-bold text-amber-400">
+          <p className="text-2xl font-bold text-blue-400">
             {priceEstimate.min}€ – {priceEstimate.max}€
           </p>
         </div>
@@ -161,7 +161,7 @@ export function ChatResults({ result }: { result: MatchResult }) {
       <p className="text-center text-sm text-zinc-500">
         <Link
           href="/inscription-client"
-          className="text-amber-400 hover:underline"
+          className="text-blue-400 hover:underline"
         >
           Créer un compte
         </Link>{" "}

@@ -28,7 +28,7 @@ const STATUS_META: Record<
   },
   sent: {
     label: "Envoyé — en attente de réponse client",
-    className: "border-amber-500/40 bg-amber-500/10 text-amber-400",
+    className: "border-blue-500/40 bg-blue-500/10 text-blue-400",
   },
   approved: {
     label: "Validé par le client ✅",
