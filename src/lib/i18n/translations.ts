@@ -83,7 +83,7 @@ export const translations = {
       deleteAccount: "Supprimer mon compte",
       deleteModalTitle: "Supprimer définitivement votre compte ?",
       deleteModalBody:
-        "Cette action est irréversible. Votre compte, profil et toutes vos données seront définitivement supprimés.",
+        "Cette action est irréversible. Toutes vos données seront supprimées.",
       deleteConfirmLabel:
         'Tapez « SUPPRIMER » pour confirmer',
       deleteCancel: "Annuler",

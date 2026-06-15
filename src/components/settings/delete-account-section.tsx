@@ -10,7 +10,11 @@ import { useAppPreferences } from "@/components/providers/app-preferences-provid
 
 const CONFIRM_WORD = "SUPPRIMER";
 
-export function DeleteAccountSection() {
+type DeleteAccountSectionProps = {
+  className?: string;
+};
+
+export function DeleteAccountSection({ className }: DeleteAccountSectionProps) {
   const router = useRouter();
   const { t } = useAppPreferences();
   const [modalOpen, setModalOpen] = useState(false);
@@ -71,7 +75,9 @@ export function DeleteAccountSection() {
 
   return (
     <>
-      <section className="mt-12 rounded-xl border border-red-500/25 bg-red-500/5 p-6">
+      <section
+        className={`rounded-xl border border-red-500/25 bg-red-500/5 p-6 ${className ?? "mt-12"}`}
+      >
         <p className="text-xs font-semibold uppercase tracking-widest text-red-600 dark:text-red-400">
           {t("settings.dangerZone")}
         </p>

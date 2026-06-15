@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { ClientDashboardNav } from "@/components/client/client-dashboard-nav";
 
 export default async function ClientDashboardLayout({
   children,
@@ -20,31 +21,45 @@ export default async function ClientDashboardLayout({
     user.email?.split("@")[0];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12">
-      <div className="flex items-center justify-between border-b border-zinc-900 pb-6">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-blue-500/80">
-            Espace client
-          </p>
-          <p className="mt-1 text-lg font-medium">{name}</p>
+    <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-5xl gap-0 px-4 py-8 md:gap-8">
+      <aside className="hidden w-52 shrink-0 flex-col border-r border-zinc-900 pr-6 md:flex">
+        <p className="text-xs uppercase tracking-widest text-[#0057FF]">
+          Espace client
+        </p>
+        <p className="mt-2 font-medium text-zinc-100">{name}</p>
+        <ClientDashboardNav />
+        <div className="mt-auto pt-8">
+          <SignOutButton />
         </div>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/parametres"
-            className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400"
-          >
-            Paramètres
-          </Link>
+      </aside>
+      <div className="min-w-0 flex-1">
+        <div className="mb-6 flex items-center justify-between gap-4 border-b border-zinc-900 pb-6 md:hidden">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-[#0057FF]">
+              Espace client
+            </p>
+            <p className="mt-1 text-lg font-medium text-zinc-100">{name}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/client/dashboard/parametres"
+              className="text-sm text-zinc-500 hover:text-[#0057FF]"
+            >
+              Paramètres
+            </Link>
+            <SignOutButton />
+          </div>
+        </div>
+        <div className="mb-6 hidden md:block">
           <Link
             href="/"
-            className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400"
+            className="text-sm text-zinc-500 hover:text-[#0057FF]"
           >
             Accueil
           </Link>
-          <SignOutButton />
         </div>
+        {children}
       </div>
-      {children}
     </div>
   );
 }

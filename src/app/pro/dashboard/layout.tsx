@@ -46,8 +46,8 @@ export default async function ProDashboardLayout({
       <div className="min-w-0 flex-1">
         <div className="mb-6 flex items-center justify-end gap-2 md:hidden">
           <Link
-            href="/parametres"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-blue-400"
+            href="/pro/dashboard/parametres"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-[#0057FF]"
             aria-label="Paramètres"
             title="Paramètres"
           >

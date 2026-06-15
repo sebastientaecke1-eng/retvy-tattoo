@@ -17,6 +17,7 @@ export function ProDashboardNav() {
   const onDeposit = pathname.startsWith("/pro/dashboard/acompte");
   const onProfile = pathname.startsWith("/pro/dashboard/profil");
   const onPersonalLink = pathname.startsWith("/pro/dashboard/lien");
+  const onSettings = pathname.startsWith("/pro/dashboard/parametres");
 
   return (
     <nav className="mt-8 flex flex-col gap-2 text-sm">
@@ -43,6 +44,9 @@ export function ProDashboardNav() {
       </Link>
       <Link href="/pro/dashboard/lien" className={navClass(onPersonalLink)}>
         Mon lien
+      </Link>
+      <Link href="/pro/dashboard/parametres" className={navClass(onSettings)}>
+        Paramètres
       </Link>
     </nav>
   );

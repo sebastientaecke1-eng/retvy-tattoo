@@ -1,11 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { createClientOrNull } from "@/lib/supabase/client";
 import { clearOnboardingStoredSession } from "@/lib/supabase/onboarding-session";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export function SignOutButton() {
+type SignOutButtonProps = {
+  label?: string;
+  className?: string;
+  icon?: ReactNode;
+};
+
+export function SignOutButton({
+  label = "Déconnexion",
+  className,
+  icon,
+}: SignOutButtonProps) {
   const [loading, setLoading] = useState(false);
   const supabase = createClientOrNull();
 
@@ -28,10 +39,12 @@ export function SignOutButton() {
       type="button"
       variant="ghost"
       size="sm"
+      className={cn(icon && "gap-2", className)}
       onClick={() => void handleSignOut()}
       disabled={loading}
     >
-      {loading ? "Déconnexion…" : "Déconnexion"}
+      {icon}
+      {loading ? "Déconnexion…" : label}
     </Button>
   );
 }
