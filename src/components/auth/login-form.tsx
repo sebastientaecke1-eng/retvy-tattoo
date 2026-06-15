@@ -10,6 +10,7 @@ import {
 import { fetchDashboardPath } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
 
@@ -84,8 +85,7 @@ export function LoginForm() {
             <label className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400">
               {t("login.password")}
             </label>
-            <Input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

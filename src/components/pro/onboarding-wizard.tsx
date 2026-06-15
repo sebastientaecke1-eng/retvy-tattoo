@@ -21,6 +21,7 @@ import { CITIES, TATTOO_STYLES } from "@/lib/types";
 import { slugify } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Banknote, Check, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 
@@ -799,7 +800,7 @@ export function OnboardingWizard() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-zinc-400">Mot de passe</label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
             </div>
           </div>
         )}
