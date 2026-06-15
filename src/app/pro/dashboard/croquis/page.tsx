@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { SketchesBookingList } from "@/components/pro/sketches-booking-list";
 import { userHasProAccess } from "@/lib/auth";
-import type { BookingSketch } from "@/lib/pro/sketches";
 import type { Booking } from "@/lib/pro/bookings";
-import { SketchesSection } from "@/components/pro/sketches-section";
-import { Button } from "@/components/ui/button";
+import type { BookingSketch } from "@/lib/pro/sketches";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,28 +18,11 @@ export default async function ProDashboardCroquisPage() {
     redirect("/client/dashboard");
   }
 
-  const { data: profile } = await admin
-    .from("pro_profiles")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!profile) {
-    return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-8 text-center">
-        <p className="text-zinc-400">Aucun profil pro trouvé.</p>
-        <Link href="/pro/inscription" className="mt-4 inline-block">
-          <Button>Commencer l&apos;inscription</Button>
-        </Link>
-      </div>
-    );
-  }
-
   const { data: bookings } = await admin
     .from("bookings")
     .select("*")
     .eq("user_id", user.id)
-    .eq("status", "confirmed")
+    .neq("status", "cancelled")
     .order("booking_date", { ascending: true });
 
   const { data: sketches } = await admin
@@ -49,10 +30,14 @@ export default async function ProDashboardCroquisPage() {
     .select("*")
     .eq("pro_user_id", user.id);
 
+  const sketchesByBookingId = Object.fromEntries(
+    (sketches ?? []).map((s) => [s.booking_id, s as BookingSketch]),
+  );
+
   return (
-    <SketchesSection
+    <SketchesBookingList
       bookings={(bookings ?? []) as Booking[]}
-      initialSketches={(sketches ?? []) as BookingSketch[]}
+      sketchesByBookingId={sketchesByBookingId}
     />
   );
 }

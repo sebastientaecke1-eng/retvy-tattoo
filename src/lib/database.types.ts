@@ -154,6 +154,15 @@ export type BookingSketchRow = {
   updated_at: string;
 };
 
+export type SketchMessageRow = {
+  id: string;
+  booking_id: string;
+  sender_role: "pro" | "client";
+  message: string | null;
+  image_url: string | null;
+  created_at: string;
+};
+
 export type BookingStatus = "pending" | "confirmed" | "cancelled";
 
 export type BookingRow = {
@@ -373,6 +382,22 @@ export interface Database {
           client_comment?: string | null;
           validation_token?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      sketch_messages: {
+        Row: SketchMessageRow;
+        Insert: {
+          booking_id: string;
+          sender_role: "pro" | "client";
+          message?: string | null;
+          image_url?: string | null;
+          id?: string;
+          created_at?: string;
+        };
+        Update: {
+          message?: string | null;
+          image_url?: string | null;
         };
         Relationships: [];
       };

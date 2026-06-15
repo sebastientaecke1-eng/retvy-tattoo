@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { insertSketchMessage } from "@/lib/sketch/message-store";
 import { storagePublicUrl } from "@/lib/pro/storage-public-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
@@ -62,9 +63,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Réservation introuvable" }, { status: 404 });
   }
 
-  if (booking.status !== "confirmed") {
+  if (booking.status === "cancelled") {
     return NextResponse.json(
-      { error: "Seuls les RDV confirmés acceptent un croquis" },
+      { error: "Ce RDV est annulé" },
       { status: 400 },
     );
   }
@@ -125,6 +126,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
+    await insertSketchMessage(admin, {
+      booking_id: bookingId,
+      sender_role: "pro",
+      image_url: sketchUrl,
+      message: "Nouveau croquis uploadé.",
+    });
+
     return NextResponse.json({ sketch: updated });
   }
 
@@ -141,6 +149,13 @@ export async function POST(request: Request) {
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
+
+  await insertSketchMessage(admin, {
+    booking_id: bookingId,
+    sender_role: "pro",
+    image_url: sketchUrl,
+    message: "Nouveau croquis uploadé.",
+  });
 
   return NextResponse.json({ sketch: inserted });
 }

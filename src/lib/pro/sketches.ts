@@ -23,19 +23,19 @@ const STATUS_META: Record<
   { label: string; className: string }
 > = {
   pending: {
-    label: "En attente d'envoi",
+    label: "En attente",
     className: "border-zinc-500/40 bg-zinc-500/10 text-zinc-300",
   },
   sent: {
-    label: "Envoyé — en attente de réponse client",
-    className: "border-blue-500/40 bg-blue-500/10 text-blue-400",
+    label: "Envoyé",
+    className: "border-[#0057FF]/40 bg-[#0057FF]/10 text-[#0057FF]",
   },
   approved: {
-    label: "Validé par le client ✅",
+    label: "Validé",
     className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
   },
   revision_requested: {
-    label: "Modification demandée ❌",
+    label: "Modification demandée",
     className: "border-red-500/40 bg-red-500/10 text-red-400",
   },
 };

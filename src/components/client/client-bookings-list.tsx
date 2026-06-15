@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Check, ExternalLink, Loader2, X } from "lucide-react";
+import { Check, ExternalLink, Loader2, MessageSquare, X } from "lucide-react";
 import {
   canClientCancelBooking,
   type ClientBooking,
@@ -270,17 +270,7 @@ function ClientBookingItem({
   const showPay =
     !cancelled && !booking.deposit_paid && booking.deposit_amount > 0;
 
-  useEffect(() => {
-    console.log("[ClientBookingItem]", {
-      id: booking.id,
-      status: booking.status,
-      booking_date: booking.booking_date,
-      bookingMs: new Date(booking.booking_date).getTime(),
-      nowMs: Date.now(),
-      canCancel,
-      showPay,
-    });
-  }, [booking.id, booking.status, booking.booking_date, canCancel, showPay]);
+  const showSketches = !cancelled;
 
   return (
     <li className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
@@ -367,6 +357,20 @@ function ClientBookingItem({
             </Button>
           </div>
         ) : null}
+
+        {showSketches && (
+          <Link href={`/client/dashboard/croquis/${booking.id}`}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="w-full border-[#0057FF]/40 text-[#0057FF] hover:bg-[#0057FF]/10 sm:w-auto"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Voir les croquis
+            </Button>
+          </Link>
+        )}
       </div>
     </li>
   );

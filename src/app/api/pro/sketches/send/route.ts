@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { sendSketchValidationEmail } from "@/lib/brevo-sketch";
 import { formatBookingDate } from "@/lib/pro/bookings";
+import { insertSketchMessage } from "@/lib/sketch/message-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
 
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!booking || booking.status !== "confirmed") {
+  if (!booking || booking.status === "cancelled") {
     return NextResponse.json({ error: "Réservation invalide" }, { status: 400 });
   }
 
@@ -85,6 +86,7 @@ export async function POST(request: Request) {
     bookingDate: formatBookingDate(booking.booking_date),
     sketchUrl: sketch.sketch_url,
     validationToken,
+    chatUrl: `https://retvy.fr/client/dashboard/croquis/${bookingId}`,
   });
 
   if (!emailResult.ok) {
@@ -110,6 +112,12 @@ export async function POST(request: Request) {
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
+
+  await insertSketchMessage(admin, {
+    booking_id: bookingId,
+    sender_role: "pro",
+    message: "Croquis envoyé au client.",
+  });
 
   return NextResponse.json({ sketch: updated });
 }
