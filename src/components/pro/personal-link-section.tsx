@@ -12,6 +12,7 @@ type PersonalLinkSectionProps = {
 };
 
 const appUrl = "https://retvy.fr";
+const QR_COLOR_DARK = "#0057FF";
 
 export function PersonalLinkSection({ slug }: PersonalLinkSectionProps) {
   const publicUrl = `${appUrl}/ink/${slug}`;
@@ -31,7 +32,7 @@ export function PersonalLinkSection({ slug }: PersonalLinkSectionProps) {
           width: 240,
           margin: 2,
           color: {
-            dark: "#f59e0b",
+            dark: QR_COLOR_DARK,
             light: "#09090b",
           },
         });
@@ -67,7 +68,7 @@ export function PersonalLinkSection({ slug }: PersonalLinkSectionProps) {
         width: 512,
         margin: 2,
         color: {
-          dark: "#f59e0b",
+          dark: QR_COLOR_DARK,
           light: "#ffffff",
         },
       });
