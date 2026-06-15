@@ -32,21 +32,25 @@ export function AddressAutocomplete({
   placeholder = "12 rue de Rivoli…",
 }: Props) {
   const [suggestions, setSuggestions] = useState<GouvAddressFeature[]>([]);
-  const [open, setOpen] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [debouncedQuery, setDebouncedQuery] = useState(value);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const listId = useId();
 
   useEffect(() => {
+    if (!showSuggestions) {
+      setDebouncedQuery("");
+      return;
+    }
+
     const timer = window.setTimeout(() => setDebouncedQuery(value), 300);
     return () => window.clearTimeout(timer);
-  }, [value]);
+  }, [value, showSuggestions]);
 
   useEffect(() => {
-    if (debouncedQuery.trim().length < 3) {
+    if (!showSuggestions || debouncedQuery.trim().length < 3) {
       setSuggestions([]);
-      setOpen(false);
       setLoading(false);
       return;
     }
@@ -58,12 +62,10 @@ export function AddressAutocomplete({
       .then((results) => {
         if (cancelled) return;
         setSuggestions(results);
-        setOpen(results.length > 0);
       })
       .catch(() => {
         if (cancelled) return;
         setSuggestions([]);
-        setOpen(false);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -72,7 +74,7 @@ export function AddressAutocomplete({
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery]);
+  }, [debouncedQuery, showSuggestions]);
 
   useEffect(() => {
     function onDocumentClick(event: MouseEvent) {
@@ -80,7 +82,7 @@ export function AddressAutocomplete({
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
-        setOpen(false);
+        setShowSuggestions(false);
       }
     }
     document.addEventListener("mousedown", onDocumentClick);
@@ -95,7 +97,7 @@ export function AddressAutocomplete({
       postalCode: postcode,
     });
     onChange(name);
-    setOpen(false);
+    setShowSuggestions(false);
     setSuggestions([]);
   }
 
@@ -105,11 +107,17 @@ export function AddressAutocomplete({
         <Input
           value={value}
           onChange={(e) => {
-            onChange(e.target.value);
-            if (e.target.value.trim().length >= 3) setOpen(true);
+            const nextValue = e.target.value;
+            onChange(nextValue);
+            if (nextValue.trim().length >= 3) {
+              setShowSuggestions(true);
+            } else {
+              setShowSuggestions(false);
+              setSuggestions([]);
+            }
           }}
-          onFocus={() => {
-            if (suggestions.length > 0) setOpen(true);
+          onBlur={() => {
+            window.setTimeout(() => setShowSuggestions(false), 150);
           }}
           required={required}
           disabled={disabled}
@@ -117,9 +125,9 @@ export function AddressAutocomplete({
           autoComplete="off"
           aria-autocomplete="list"
           aria-controls={listId}
-          aria-expanded={open}
+          aria-expanded={showSuggestions && suggestions.length > 0}
         />
-        {loading && (
+        {loading && showSuggestions && (
           <Loader2
             className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-zinc-500"
             aria-hidden
@@ -127,7 +135,7 @@ export function AddressAutocomplete({
         )}
       </div>
 
-      {open && suggestions.length > 0 && (
+      {showSuggestions && suggestions.length > 0 && (
         <ul
           id={listId}
           role="listbox"
