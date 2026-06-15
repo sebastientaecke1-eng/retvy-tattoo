@@ -12,7 +12,7 @@ export const translations = {
       settings: "Paramètres",
     },
     footer: {
-      tagline: "Marketplace tatouage & piercing en France.",
+      tagline: "Marketplace tatouage en France.",
       login: "Connexion",
       becomePro: "Devenir pro",
     },
