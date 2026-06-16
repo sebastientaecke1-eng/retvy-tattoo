@@ -19,9 +19,10 @@ type Step = 1 | 2;
 
 type Props = {
   onResultsChange?: (showing: boolean) => void;
+  compact?: boolean;
 };
 
-export function TattooFinder({ onResultsChange }: Props) {
+export function TattooFinder({ onResultsChange, compact }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [style, setStyle] = useState<LandingStyleChip | null>(null);
   const [city, setCity] = useState("");
@@ -116,7 +117,12 @@ export function TattooFinder({ onResultsChange }: Props) {
     <div>
       <Card className="overflow-hidden border-zinc-800 bg-[#0A0A0A]">
         <CardContent className="p-0">
-          <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
+          <div
+            className={cn(
+              "flex items-center gap-2 border-b border-zinc-800 px-4",
+              compact ? "py-2" : "py-3",
+            )}
+          >
             <Sparkles className="h-4 w-4 text-[#0057FF]" />
             <span className="text-sm font-medium text-zinc-200">
               Trouver mon tatoueur
@@ -126,9 +132,10 @@ export function TattooFinder({ onResultsChange }: Props) {
             </span>
           </div>
 
-          <div className="min-h-[280px] p-6">
+          <div className={cn("p-4 md:p-5", !compact && "min-h-[280px]")}>
             {step === 1 && (
               <StepPanel
+                compact={compact}
                 title="Quel style vous intéresse ?"
                 subtitle="Choisissez le style qui vous correspond."
               >
@@ -148,6 +155,7 @@ export function TattooFinder({ onResultsChange }: Props) {
 
             {step === 2 && (
               <StepPanel
+                compact={compact}
                 title="Dans quelle ville ?"
                 subtitle="Indiquez une ville ou laissez vide pour voir tous nos artistes."
               >
@@ -209,16 +217,27 @@ function StepPanel({
   title,
   subtitle,
   children,
+  compact,
 }: {
   title: string;
   subtitle: string;
   children: React.ReactNode;
+  compact?: boolean;
 }) {
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
+    <div className="space-y-3 animate-in fade-in duration-300 md:space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-zinc-100">{title}</h3>
-        <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
+        <h3
+          className={cn(
+            "font-semibold text-zinc-100",
+            compact ? "text-base" : "text-lg",
+          )}
+        >
+          {title}
+        </h3>
+        <p className={cn("text-zinc-500", compact ? "mt-0.5 text-xs" : "mt-1 text-sm")}>
+          {subtitle}
+        </p>
       </div>
       {children}
     </div>

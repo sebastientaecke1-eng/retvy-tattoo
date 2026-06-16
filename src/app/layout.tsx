@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className="dark" suppressHydrationWarning>
+    <html lang="fr" className="scroll-smooth dark" suppressHydrationWarning>
       <head>
         <ThemeBootstrap />
       </head>

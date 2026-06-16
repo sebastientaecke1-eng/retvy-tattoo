@@ -19,7 +19,7 @@ function escapeIlike(value: string): string {
   return value.replace(/[%_]/g, "\\$&");
 }
 
-export function SearchBar() {
+export function SearchBar({ className }: { className?: string }) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
@@ -101,7 +101,7 @@ export function SearchBar() {
   }
 
   return (
-    <div ref={containerRef} className="relative z-10 mt-8 max-w-xl">
+    <div ref={containerRef} className={cn("relative z-10 mt-8 max-w-xl", className)}>
       <label htmlFor="artist-search" className="sr-only">
         Rechercher un tatoueur
       </label>

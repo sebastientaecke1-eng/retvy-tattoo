@@ -1,21 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { MapPin, Shield, Sparkles } from "lucide-react";
 import { TattooFinder } from "@/components/home/tattoo-finder";
 import { SearchBar } from "@/components/home/search-bar";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
-import { cn } from "@/lib/utils";
-
-const ctaPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 py-3 text-base font-semibold text-black shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-400";
-const ctaOutline =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/50 px-6 py-3 text-base text-blue-600 transition-colors hover:bg-blue-500/10 dark:text-blue-400";
 
 export function HomePageContent() {
   const { t } = useAppPreferences();
   const [finderResults, setFinderResults] = useState(false);
+  const finderRef = useRef<HTMLDivElement>(null);
+
+  const scrollToFinder = useCallback(() => {
+    finderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   const features = [
     {
@@ -39,71 +38,71 @@ export function HomePageContent() {
     <div>
       <section className="relative overflow-hidden border-b border-zinc-200 dark:border-zinc-900">
         <div className="gradient-gold pointer-events-none absolute inset-0" />
-        <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
-          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/5 px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400">
-            <Sparkles className="h-3.5 w-3.5" />
-            {t("home.badge")}
-          </p>
-          <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-6xl">
-            {t("home.title")}{" "}
-            <span className="text-blue-500 dark:text-blue-400">
-              {t("home.titleHighlight")}
-            </span>
-          </h1>
-          <p className="mt-6 max-w-xl text-lg text-zinc-600 dark:text-zinc-400">
-            {t("home.subtitle")}
-          </p>
-          <SearchBar />
-          <div className="mt-10 flex flex-wrap gap-4">
-            <Link href="#chat" className={ctaPrimary}>
-              {t("home.ctaAi")}
-            </Link>
-            <Link href="/pro/inscription" className={ctaOutline}>
-              {t("home.ctaPro")}
-            </Link>
+        <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-8 md:pb-12 md:pt-10">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0 max-w-2xl">
+              <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#0057FF]/30 bg-[#0057FF]/5 px-2.5 py-0.5 text-[11px] font-medium text-[#0057FF]">
+                <Sparkles className="h-3 w-3" />
+                {t("home.badge")}
+              </p>
+              <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-4xl">
+                {t("home.title")}{" "}
+                <span className="text-[#0057FF]">{t("home.titleHighlight")}</span>
+              </h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={scrollToFinder}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#0057FF] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-[#0057FF]/20 transition-colors hover:bg-[#0046d4]"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {t("home.ctaAi")}
+              </button>
+              <Link
+                href="/pro/inscription"
+                className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm text-zinc-500 transition-colors hover:text-zinc-300 dark:text-zinc-500 dark:hover:text-zinc-300"
+              >
+                {t("home.ctaPro")}
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <SearchBar className="mt-0 max-w-full" />
+          </div>
+
+          <div
+            id="tattoo-finder"
+            ref={finderRef}
+            className="mt-5 scroll-mt-24"
+          >
+            <TattooFinder onResultsChange={setFinderResults} compact />
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-16">
-        <div
-          className={cn(
-            "grid gap-12 lg:items-start",
-            finderResults ? "grid-cols-1" : "lg:grid-cols-2",
-          )}
-        >
-          <div className={finderResults ? "col-span-full" : undefined}>
-            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-              {t("home.sectionTitle")}
-            </h2>
-            <p className="mt-2 text-zinc-600 dark:text-zinc-500">
-              {t("home.sectionSubtitle")}
-            </p>
-            <div id="chat" className="mt-6">
-              <TattooFinder onResultsChange={setFinderResults} />
-            </div>
-          </div>
-          {!finderResults && (
-            <div className="space-y-8 pt-4">
-              {features.map(({ icon: Icon, title, text }) => (
-                <div key={title} className="flex gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-zinc-800 dark:text-zinc-200">
-                      {title}
-                    </h3>
-                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">
-                      {text}
-                    </p>
-                  </div>
+      {!finderResults && (
+        <section className="mx-auto max-w-6xl px-4 py-12 md:py-16">
+          <div className="grid gap-8 md:grid-cols-3">
+            {features.map(({ icon: Icon, title, text }) => (
+              <div key={title} className="flex gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0057FF]/10 text-[#0057FF]">
+                  <Icon className="h-5 w-5" />
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+                <div>
+                  <h3 className="font-medium text-zinc-800 dark:text-zinc-200">
+                    {title}
+                  </h3>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-500">
+                    {text}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
