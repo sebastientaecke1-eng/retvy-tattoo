@@ -177,6 +177,7 @@ export type BookingRow = {
   zone: string | null;
   size: string | null;
   reference_image_url: string | null;
+  color_preference: string | null;
   booking_date: string;
   duration_minutes: number;
   deposit_amount: number;
@@ -332,6 +333,7 @@ export interface Database {
           zone?: string | null;
           size?: string | null;
           reference_image_url?: string | null;
+          color_preference?: string | null;
           duration_minutes?: number;
           deposit_amount?: number;
           deposit_paid?: boolean;
@@ -350,6 +352,7 @@ export interface Database {
           zone?: string | null;
           size?: string | null;
           reference_image_url?: string | null;
+          color_preference?: string | null;
           booking_date?: string;
           duration_minutes?: number;
           deposit_amount?: number;

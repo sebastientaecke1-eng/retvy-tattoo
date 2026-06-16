@@ -23,6 +23,7 @@ export type Booking = {
   zone: string | null;
   size: string | null;
   reference_image_url: string | null;
+  color_preference: string | null;
   booking_date: string;
   duration_minutes: number;
   deposit_amount: number;

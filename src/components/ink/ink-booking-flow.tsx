@@ -6,12 +6,14 @@ import { DefaultChatTransport } from "ai";
 import {
   ArrowRight,
   Check,
-  ImagePlus,
   Loader2,
+  Paperclip,
   Sparkles,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { colorPreferenceLabel } from "@/lib/ink/color-preference";
 import {
   getPublicSupabaseAnonKey,
   getPublicSupabaseUrl,
@@ -43,6 +45,7 @@ export type BookingIntakeResult = {
   client_phone: string;
   reference_note: string | null;
   reference_image_url: string | null;
+  color_preference: "color" | "black_and_grey" | "undecided";
   project_description: string;
   price_estimate: { min: number; max: number };
   deposit_amount: number;
@@ -58,6 +61,7 @@ type Props = {
 function buildBookPayload(
   intake: BookingIntakeResult,
   referenceUrl: string | null,
+  referenceAnalysis: string | null,
 ) {
   const slot_date = normalizeSlotDate(intake.slot_date) ?? intake.slot_date;
   const slot_time = normalizeSlotTime(intake.slot_time) ?? intake.slot_time;
@@ -76,7 +80,8 @@ function buildBookPayload(
     client_phone: intake.client_phone,
     project_description: intake.project_description,
     reference_image_url: intake.reference_image_url ?? referenceUrl,
-    reference_note: intake.reference_note,
+    reference_note: intake.reference_note ?? referenceAnalysis,
+    color_preference: intake.color_preference,
   };
 }
 
@@ -88,6 +93,7 @@ export function InkBookingFlow({ slug, artistName }: Props) {
 
   const [input, setInput] = useState("");
   const [referenceUrl, setReferenceUrl] = useState<string | null>(null);
+  const [referenceAnalysis, setReferenceAnalysis] = useState<string | null>(null);
   const [referenceUploading, setReferenceUploading] = useState(false);
   const [paying, setPaying] = useState(false);
   const [deferring, setDeferring] = useState(false);
@@ -133,7 +139,12 @@ export function InkBookingFlow({ slug, artistName }: Props) {
   }, [messages.length, status, sendMessage, success]);
 
   async function uploadReference(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      setPayError("Image trop volumineuse (max 5 Mo)");
+      return;
+    }
     setReferenceUploading(true);
+    setPayError(null);
     try {
       const fd = new FormData();
       fd.set("file", file);
@@ -141,11 +152,28 @@ export function InkBookingFlow({ slug, artistName }: Props) {
         method: "POST",
         body: fd,
       });
-      const data = (await res.json()) as { url?: string; error?: string };
+      const data = (await res.json()) as {
+        url?: string;
+        analysis?: string | null;
+        error?: string;
+      };
       if (!res.ok || !data.url) throw new Error(data.error ?? "Échec upload");
       setReferenceUrl(data.url);
+      setReferenceAnalysis(data.analysis?.trim() || null);
+
+      const intro = data.analysis
+        ? `J'ai ajouté une photo de référence. Analyse : ${data.analysis}`
+        : "J'ai ajouté une photo de référence pour mon projet.";
+
       sendMessage({
-        text: `J'ai ajouté une image de référence : ${data.url}`,
+        parts: [
+          { type: "text", text: intro },
+          {
+            type: "file",
+            url: data.url,
+            mediaType: file.type || "image/jpeg",
+          },
+        ],
       });
     } catch (e) {
       setPayError(e instanceof Error ? e.message : "Erreur upload");
@@ -159,7 +187,7 @@ export function InkBookingFlow({ slug, artistName }: Props) {
     setPaying(true);
     setPayError(null);
     try {
-      const payload = buildBookPayload(intake, referenceUrl);
+      const payload = buildBookPayload(intake, referenceUrl, referenceAnalysis);
 
       const prepRes = await fetch(`/api/ink/${slug}/book`, {
         method: "POST",
@@ -214,7 +242,7 @@ export function InkBookingFlow({ slug, artistName }: Props) {
       const res = await fetch(`/api/ink/${slug}/book/defer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildBookPayload(intake, referenceUrl)),
+        body: JSON.stringify(buildBookPayload(intake, referenceUrl, referenceAnalysis)),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
@@ -250,15 +278,6 @@ export function InkBookingFlow({ slug, artistName }: Props) {
     );
   }
 
-  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
-  const lastText =
-    lastAssistant?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ??
-    "";
-  const showReferenceUpload =
-    !intake &&
-    !isLoading &&
-    /référence|image|photo/i.test(lastText);
-
   const visibleMessages = messages.filter(
     (m) =>
       !(
@@ -280,12 +299,53 @@ export function InkBookingFlow({ slug, artistName }: Props) {
 
       <Card className="overflow-hidden border-blue-500/20 bg-zinc-950/90">
         <CardContent className="p-0">
-          <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
-            <Sparkles className="h-4 w-4 text-blue-400" />
-            <span className="text-sm font-medium text-zinc-200">
-              Réservation avec {artistName}
-            </span>
+          <div className="flex items-center justify-between gap-2 border-b border-zinc-800 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-blue-400" />
+              <span className="text-sm font-medium text-zinc-200">
+                Réservation avec {artistName}
+              </span>
+            </div>
+            {!intake && (
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-800 px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-blue-500/40 hover:text-blue-300">
+                {referenceUploading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Paperclip className="h-3.5 w-3.5" />
+                )}
+                Photo de référence
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/*"
+                  className="hidden"
+                  disabled={referenceUploading || isLoading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void uploadReference(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            )}
           </div>
+
+          {referenceUrl && !intake && (
+            <div className="flex items-center gap-3 border-b border-zinc-800 bg-zinc-900/40 px-4 py-2">
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-zinc-700">
+                <Image
+                  src={referenceUrl}
+                  alt="Référence"
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+              <p className="text-xs text-zinc-500">
+                Photo de référence ajoutée
+                {referenceAnalysis ? " — l'assistant l'analyse pour affiner le projet." : "."}
+              </p>
+            </div>
+          )}
 
           <div
             ref={scrollRef}
@@ -295,7 +355,22 @@ export function InkBookingFlow({ slug, artistName }: Props) {
               const text = m.parts
                 .map((p) => (p.type === "text" ? p.text : ""))
                 .join("");
-              if (!text.trim()) return null;
+              const hasImage = m.parts.some(
+                (p) =>
+                  p.type === "file" &&
+                  "mediaType" in p &&
+                  typeof p.mediaType === "string" &&
+                  p.mediaType.startsWith("image/") &&
+                  "url" in p &&
+                  typeof p.url === "string",
+              );
+              const imageUrl = m.parts.find(
+                (p) =>
+                  p.type === "file" &&
+                  "url" in p &&
+                  typeof p.url === "string",
+              );
+              if (!text.trim() && !hasImage) return null;
               return (
                 <div
                   key={m.id}
@@ -306,7 +381,21 @@ export function InkBookingFlow({ slug, artistName }: Props) {
                       : "bg-zinc-900 text-zinc-300",
                   )}
                 >
-                  {text}
+                  {hasImage &&
+                    imageUrl &&
+                    "url" in imageUrl &&
+                    typeof imageUrl.url === "string" && (
+                      <div className="relative mb-2 h-32 w-full overflow-hidden rounded-lg border border-zinc-700">
+                        <Image
+                          src={imageUrl.url}
+                          alt="Référence"
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    )}
+                  {text.trim() ? text : "Photo de référence"}
                 </div>
               );
             })}
@@ -329,30 +418,6 @@ export function InkBookingFlow({ slug, artistName }: Props) {
               </p>
             )}
           </div>
-
-          {showReferenceUpload && (
-            <div className="border-t border-zinc-800 px-4 py-3">
-              <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300">
-                {referenceUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ImagePlus className="h-4 w-4" />
-                )}
-                Ajouter une image de référence (optionnel)
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
-                  disabled={referenceUploading}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) void uploadReference(f);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            </div>
-          )}
 
           {!intake && (
             <form
@@ -401,6 +466,10 @@ export function InkBookingFlow({ slug, artistName }: Props) {
               <RecapRow label="Zone" value={intake.zone} />
               <RecapRow label="Taille" value={sizeCategoryLabel(intake.size_category)} />
               <RecapRow
+                label="Couleur"
+                value={colorPreferenceLabel(intake.color_preference)}
+              />
+              <RecapRow
                 label="Créneau"
                 value={`${intake.slot_date} à ${intake.slot_time} (${intake.duration_minutes} min)`}
               />
@@ -413,6 +482,17 @@ export function InkBookingFlow({ slug, artistName }: Props) {
               />
             </dl>
             <p className="text-sm text-zinc-400">{intake.project_description}</p>
+            {(intake.reference_image_url ?? referenceUrl) && (
+              <div className="relative aspect-video max-w-xs overflow-hidden rounded-xl border border-zinc-800">
+                <Image
+                  src={intake.reference_image_url ?? referenceUrl ?? ""}
+                  alt="Référence"
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+            )}
             <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3">
               <p className="text-xs uppercase tracking-widest text-blue-500/80">
                 Acompte à régler

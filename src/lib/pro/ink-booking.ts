@@ -1,4 +1,5 @@
 import { parisWallTimeToUtcIso } from "@/lib/datetime/paris";
+import { colorPreferenceLabel } from "@/lib/ink/color-preference";
 import type { SizeCategory } from "@/lib/pro/style-duration-tiers";
 import { isSizeCategory } from "@/lib/pro/style-duration-tiers";
 import { styleLabel } from "@/lib/pro/public-profile";
@@ -18,6 +19,7 @@ export type InkBookingIntake = {
   client_phone: string;
   reference_image_url?: string | null;
   reference_note?: string | null;
+  color_preference?: string | null;
   project_description: string;
 };
 
@@ -50,12 +52,15 @@ export function sizeCategoryLabel(cat: SizeCategory): string {
 
 export function buildProjectDescription(intake: Pick<
   InkBookingIntake,
-  "style" | "zone" | "size" | "budget" | "reference_note"
+  "style" | "zone" | "size" | "budget" | "reference_note" | "color_preference"
 >): string {
   const parts = [
     styleLabel(intake.style),
     intake.zone,
     intake.size,
+    intake.color_preference
+      ? colorPreferenceLabel(intake.color_preference)
+      : null,
     `Budget ~${intake.budget}€`,
   ];
   if (intake.reference_note) parts.push(`Réf. : ${intake.reference_note}`);

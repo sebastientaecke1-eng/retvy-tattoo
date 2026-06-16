@@ -152,5 +152,6 @@ export function bookingMetadataFromPrepared(prepared: PreparedInkBooking) {
     reference: prepared.reference,
     cancellation_policy: prepared.cancellationPolicy,
     reference_image_url: body.reference_image_url ?? "",
+    color_preference: body.color_preference ?? "",
   };
 }

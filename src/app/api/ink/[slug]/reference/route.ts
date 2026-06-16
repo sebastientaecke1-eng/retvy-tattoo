@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
+import { analyzeReferenceImage } from "@/lib/ink/analyze-reference-image";
 import { fetchPublicProProfileBySlug } from "@/lib/pro/public-profile";
+import { storagePublicUrl } from "@/lib/pro/storage-public-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const MAX_BYTES = 5 * 1024 * 1024;
-const ALLOWED = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-]);
+const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
+const BUCKET = "booking-references";
 
 export async function POST(
   request: Request,
@@ -26,25 +24,34 @@ export async function POST(
     return NextResponse.json({ error: "Fichier requis" }, { status: 400 });
   }
   if (!ALLOWED.has(file.type)) {
-    return NextResponse.json({ error: "Format non supporté" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Format non supporté (jpg, png, webp)" },
+      { status: 400 },
+    );
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Fichier trop volumineux (max 5 Mo)" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Fichier trop volumineux (max 5 Mo)" },
+      { status: 400 },
+    );
   }
 
-  const ext = file.type.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
-  const path = `references/${slug}/${crypto.randomUUID()}.${ext}`;
+  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const path = `${slug}/${crypto.randomUUID()}.${ext}`;
   const admin = createAdminClient();
   const buffer = Buffer.from(await file.arrayBuffer());
 
   const { error: uploadError } = await admin.storage
-    .from("portfolio")
+    .from(BUCKET)
     .upload(path, buffer, { contentType: file.type, upsert: false });
 
   if (uploadError) {
+    console.error("[ink/reference] upload", uploadError.message);
     return NextResponse.json({ error: uploadError.message }, { status: 500 });
   }
 
-  const { data: publicUrl } = admin.storage.from("portfolio").getPublicUrl(path);
-  return NextResponse.json({ url: publicUrl.publicUrl });
+  const url = storagePublicUrl(BUCKET, path);
+  const analysis = await analyzeReferenceImage(url);
+
+  return NextResponse.json({ url, analysis });
 }

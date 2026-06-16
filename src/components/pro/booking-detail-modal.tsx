@@ -11,6 +11,7 @@ import {
   getBookingStatusMeta,
   splitClientName,
 } from "@/lib/pro/bookings";
+import { colorPreferenceLabel } from "@/lib/ink/color-preference";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -85,6 +86,11 @@ export function BookingDetailModal({ booking, onClose }: Props) {
             <p className="mt-2 text-sm font-medium text-blue-400/90">
               {formatProjectSummary(booking)}
             </p>
+            {booking.color_preference && (
+              <p className="mt-2 text-sm text-zinc-400">
+                Couleur : {colorPreferenceLabel(booking.color_preference)}
+              </p>
+            )}
             {booking.project_description && (
               <p className="mt-2 text-sm leading-relaxed text-zinc-300">
                 {booking.project_description}

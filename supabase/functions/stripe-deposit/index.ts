@@ -24,6 +24,7 @@ type BookingData = {
   project_description: string;
   reference_image_url?: string | null;
   reference_note?: string | null;
+  color_preference?: string | null;
   client_id?: string | null;
 };
 
@@ -252,6 +253,7 @@ Deno.serve(async (req) => {
     reference,
     cancellation_policy: depositRow?.cancellation_policy ?? "48h",
     reference_image_url: bookingData.reference_image_url ?? "",
+    color_preference: bookingData.color_preference ?? "",
     booking_id: bookingId ?? "",
   };
 

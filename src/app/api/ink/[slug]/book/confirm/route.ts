@@ -48,6 +48,7 @@ async function confirmDepositSession(sessionId: string, expectedSlug: string) {
     reference: meta.reference,
     cancellation_policy: meta.cancellation_policy,
     reference_image_url: meta.reference_image_url,
+    color_preference: meta.color_preference,
   });
 }
 

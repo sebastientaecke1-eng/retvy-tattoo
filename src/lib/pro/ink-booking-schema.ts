@@ -29,6 +29,10 @@ export const inkBookBodySchema = z.object({
   project_description: z.string().min(1).max(2000),
   reference_image_url: z.string().url().max(2048).nullable().optional(),
   reference_note: z.string().max(500).nullable().optional(),
+  color_preference: z
+    .enum(["color", "black_and_grey", "undecided"])
+    .nullable()
+    .optional(),
   client_id: z.string().uuid().nullable().optional(),
 });
 

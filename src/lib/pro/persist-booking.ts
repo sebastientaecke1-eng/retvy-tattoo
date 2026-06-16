@@ -30,6 +30,7 @@ export type BookingMetadata = {
   reference?: string;
   cancellation_policy?: string;
   reference_image_url?: string;
+  color_preference?: string;
 };
 
 async function resolveProEmail(
@@ -115,6 +116,7 @@ export async function insertBookingFromMetadata(
     zone: meta.zone ?? null,
     size: meta.size ?? null,
     reference_image_url: meta.reference_image_url || null,
+    color_preference: meta.color_preference || null,
     duration_minutes: Number(meta.duration_minutes ?? 60),
     cancellation_policy:
       (meta.cancellation_policy as CancellationPolicy) ?? "48h",
@@ -162,6 +164,7 @@ export async function insertBookingFromMetadata(
     zone: meta.zone ?? null,
     size: meta.size ?? null,
     reference_image_url: meta.reference_image_url || null,
+    color_preference: meta.color_preference || null,
     booking_date: bookingDate,
     duration_minutes: Number(meta.duration_minutes ?? 60),
     deposit_amount: depositEur,

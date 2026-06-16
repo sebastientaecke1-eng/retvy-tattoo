@@ -56,10 +56,23 @@ async function loadAvailabilitySafe(
   }
 }
 
+function uiMessagesHaveImages(messages: UIMessage[]): boolean {
+  return messages.some((message) =>
+    message.parts?.some(
+      (part) =>
+        part.type === "file" &&
+        "mediaType" in part &&
+        typeof part.mediaType === "string" &&
+        part.mediaType.startsWith("image/"),
+    ),
+  );
+}
+
 function buildInkSystemPrompt(
   artistName: string,
   styles: string[],
   currentDateIso: string,
+  hasReferenceImage: boolean,
 ): string {
   const now = new Date(currentDateIso);
   const dateActuelle = now.toLocaleDateString("fr-FR", {
@@ -84,13 +97,23 @@ Ordre strict des questions :
 ${styleList}
 2. Zone du corps
 3. Taille approximative (petit <10cm, moyen 10-25cm, grand 25cm+)
-4. Image de référence (optionnel — le client peut dire "non" ou "passer")
-5. Budget approximatif en euros
-6. Dates souhaitées (une ou plusieurs) — utilise l'outil check_preferred_dates
-7. Propose 3 créneaux via propose_available_slots (style + taille requis)
-8. Prénom et nom du client
-9. Email
-10. Téléphone
+4. Couleur — demande exactement : « Souhaitez-vous un tatouage en couleur, en noir et gris, ou vous n'avez pas encore décidé ? »
+   Enregistre color_preference : "color" | "black_and_grey" | "undecided"
+5. Image de référence (optionnel — le client peut dire "non" ou "passer")
+6. Budget approximatif en euros
+7. Dates souhaitées (une ou plusieurs) — utilise l'outil check_preferred_dates
+8. Propose 3 créneaux via propose_available_slots (style + taille requis)
+9. Prénom et nom du client
+10. Email
+11. Téléphone
+
+${hasReferenceImage ? `Photo de référence :
+- Le client a déjà uploadé une image de référence (visible dans le chat).
+- Analyse-la visuellement : style probable, zone suggérée, couleur/N&B, éléments clés.
+- Pose des questions en lien avec ce que tu vois, sans répéter inutilement les questions déjà couvertes.
+- Intègre tes observations dans reference_note lors de complete_booking_intake.` : `Photo de référence :
+- Le client peut ajouter une photo à tout moment via le bouton dédié.
+- Si une image arrive plus tard, analyse-la et adapte tes questions.`}
 
 Règles :
 - UNE question à la fois. Réagis brièvement à chaque réponse.
@@ -100,7 +123,8 @@ Règles :
 - Respecte les horaires et créneaux retournés par les outils (ne invente pas de créneaux).
 - Quand le client choisit un créneau parmi les 3 proposés, retiens date + heure exacte au format HH:MM (ex: 10:00, 14:30).
 - Si le client dit « oui le 17 juin à 10h », enregistre slot_date=2026-06-17 et slot_time=10:00.
-- Quand tu as TOUT (style, zone, taille, budget, créneau, nom, email, téléphone), appelle complete_booking_intake.
+- Si le client a envoyé une image dans le chat, repasse son URL dans reference_image_url lors de complete_booking_intake.
+- Quand tu as TOUT (style, zone, taille, color_preference, budget, créneau, nom, email, téléphone), appelle complete_booking_intake.
 - Après complete_booking_intake, écris uniquement : "Parfait ! Voici le récapitulatif de votre réservation ↓"
 - Ne mentionne pas Stripe ni les détails techniques.`;
 }
@@ -133,7 +157,12 @@ export async function POST(
     const rangeEnd = new Date(rangeStart.getTime() + 60 * 24 * 60 * 60 * 1000);
 
     const openai = createOpenAI({ apiKey: key });
-    const model = openai(process.env.OPENAI_MODEL ?? "gpt-4o-mini");
+    const hasReferenceImage = uiMessagesHaveImages(body.messages);
+    const model = openai(
+      hasReferenceImage
+        ? "gpt-4o"
+        : (process.env.OPENAI_MODEL ?? "gpt-4o-mini"),
+    );
 
     const tools = {
       check_preferred_dates: tool({
@@ -211,6 +240,7 @@ export async function POST(
           client_name: z.string(),
           client_email: z.string().email(),
           client_phone: z.string(),
+          color_preference: z.enum(["color", "black_and_grey", "undecided"]),
           reference_note: z.string().optional(),
           reference_image_url: z.string().url().optional(),
         }),
@@ -277,6 +307,7 @@ export async function POST(
               client_name: input.client_name,
               client_email: input.client_email,
               client_phone: input.client_phone,
+              color_preference: input.color_preference,
               reference_note: input.reference_note ?? null,
               reference_image_url: input.reference_image_url ?? null,
               project_description: buildProjectDescription({
@@ -284,6 +315,7 @@ export async function POST(
                 zone: input.zone,
                 size: input.size,
                 budget: budgetEur,
+                color_preference: input.color_preference,
                 reference_note: input.reference_note ?? null,
               }),
               price_estimate: price,
@@ -304,6 +336,7 @@ export async function POST(
         profile.artist_name,
         styles,
         currentDateIso,
+        hasReferenceImage,
       ),
       tools,
       stopWhen: stepCountIs(12),
