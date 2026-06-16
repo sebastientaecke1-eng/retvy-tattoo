@@ -6,6 +6,7 @@ import { MapPin, Shield, Sparkles } from "lucide-react";
 import { TattooFinder } from "@/components/home/tattoo-finder";
 import { SearchBar } from "@/components/home/search-bar";
 import { useAppPreferences } from "@/components/providers/app-preferences-provider";
+import { cn } from "@/lib/utils";
 
 export function HomePageContent() {
   const { t } = useAppPreferences();
@@ -68,14 +69,17 @@ export function HomePageContent() {
             </div>
           </div>
 
-          <div className="mt-5">
-            <SearchBar className="mt-0 max-w-full" />
+          <div className="mx-auto mt-6 w-full max-w-md">
+            <SearchBar className="mt-0 w-full max-w-none" />
           </div>
 
           <div
             id="tattoo-finder"
             ref={finderRef}
-            className="mt-5 scroll-mt-24"
+            className={cn(
+              "mx-auto mt-4 scroll-mt-24 w-full",
+              finderResults ? "max-w-6xl" : "max-w-md",
+            )}
           >
             <TattooFinder onResultsChange={setFinderResults} compact />
           </div>

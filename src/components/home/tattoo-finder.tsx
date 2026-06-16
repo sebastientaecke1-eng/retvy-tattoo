@@ -114,13 +114,18 @@ export function TattooFinder({ onResultsChange, compact }: Props) {
   }
 
   return (
-    <div>
-      <Card className="overflow-hidden border-zinc-800 bg-[#0A0A0A]">
-        <CardContent className="p-0">
+    <div className={cn(compact && "w-full")}>
+      <Card
+        className={cn(
+          "mx-auto w-full overflow-hidden border-zinc-800 bg-[#0A0A0A]",
+          compact && "aspect-square max-w-md",
+        )}
+      >
+        <CardContent className="flex h-full flex-col p-0">
           <div
             className={cn(
-              "flex items-center gap-2 border-b border-zinc-800 px-4",
-              compact ? "py-2" : "py-3",
+              "flex shrink-0 items-center gap-2 border-b border-zinc-800 px-4",
+              compact ? "py-2.5" : "py-3",
             )}
           >
             <Sparkles className="h-4 w-4 text-[#0057FF]" />
@@ -132,14 +137,26 @@ export function TattooFinder({ onResultsChange, compact }: Props) {
             </span>
           </div>
 
-          <div className={cn("p-4 md:p-5", !compact && "min-h-[280px]")}>
+          <div
+            className={cn(
+              "flex flex-1 flex-col",
+              compact
+                ? "justify-center px-5 py-4"
+                : "min-h-[280px] p-4 md:p-5",
+            )}
+          >
             {step === 1 && (
               <StepPanel
                 compact={compact}
                 title="Quel style vous intéresse ?"
                 subtitle="Choisissez le style qui vous correspond."
               >
-                <div className="flex flex-wrap gap-2">
+                <div
+                  className={cn(
+                    "flex flex-wrap gap-2.5",
+                    compact && "justify-center",
+                  )}
+                >
                   {LANDING_STYLE_CHIPS.map((chip) => (
                     <ChipButton
                       key={chip.label}
@@ -159,17 +176,25 @@ export function TattooFinder({ onResultsChange, compact }: Props) {
                 title="Dans quelle ville ?"
                 subtitle="Indiquez une ville ou laissez vide pour voir tous nos artistes."
               >
-                <form onSubmit={(e) => void handleCitySubmit(e)} className="space-y-4">
+                <form
+                  onSubmit={(e) => void handleCitySubmit(e)}
+                  className={cn("space-y-4", compact && "text-center")}
+                >
                   <input
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="Ex. Paris, Lyon, Marseille… (optionnel)"
+                    placeholder="Ex. Paris, Lyon… (optionnel)"
                     autoFocus
                     disabled={loading}
                     className={inputClass}
                   />
-                  <div className="flex flex-wrap gap-2">
+                  <div
+                    className={cn(
+                      "flex flex-wrap gap-2",
+                      compact && "justify-center",
+                    )}
+                  >
                     <button
                       type="button"
                       onClick={() => setStep(1)}
@@ -225,7 +250,12 @@ function StepPanel({
   compact?: boolean;
 }) {
   return (
-    <div className="space-y-3 animate-in fade-in duration-300 md:space-y-4">
+    <div
+      className={cn(
+        "animate-in fade-in duration-300",
+        compact ? "space-y-4 text-center" : "space-y-3 md:space-y-4",
+      )}
+    >
       <div>
         <h3
           className={cn(
@@ -258,7 +288,8 @@ function ChipButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "cursor-pointer rounded-full border px-4 py-2 text-sm transition-colors",
+        "cursor-pointer rounded-full border text-sm transition-colors",
+        compact ? "px-3.5 py-2" : "px-4 py-2",
         active
           ? "border-[#0057FF] bg-[#0057FF]/15 text-[#7eb3ff]"
           : "border-zinc-700 text-zinc-400 hover:border-[#0057FF]/50 hover:text-zinc-200",
