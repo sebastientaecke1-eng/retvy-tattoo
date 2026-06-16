@@ -161,6 +161,7 @@ export function TattooFinder({ onResultsChange, compact }: Props) {
                     <ChipButton
                       key={chip.label}
                       active={style === chip.label}
+                      compact={compact}
                       onClick={() => handleStyleSelect(chip.label)}
                     >
                       {chip.label}
@@ -277,10 +278,12 @@ function StepPanel({
 function ChipButton({
   children,
   active,
+  compact,
   onClick,
 }: {
   children: React.ReactNode;
   active?: boolean;
+  compact?: boolean;
   onClick: () => void;
 }) {
   return (
