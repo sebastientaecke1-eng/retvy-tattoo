@@ -16,6 +16,9 @@ export async function POST(request: Request) {
     const { data, error } = await admin.auth.admin.generateLink({
       type: "recovery",
       email,
+      options: {
+        redirectTo: `${appUrl}/auth/update-password`,
+      },
     });
 
     if (error || !data?.properties?.hashed_token) {
