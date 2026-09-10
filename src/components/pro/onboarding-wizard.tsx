@@ -17,37 +17,41 @@ import {
   getPublicSupabaseAnonKey,
   getPublicSupabaseUrl,
 } from "@/lib/supabase/public-config";
-import { CITIES, TATTOO_STYLES } from "@/lib/types";
+import {
+  type ProStyleSelection,
+  fetchTattooStyleCatalog,
+  resolveStyleIdsForSave,
+} from "@/lib/pro/tattoo-style-catalog";
+import {
+  clearOnboardingDraft,
+  readOnboardingDraft,
+  syncProOnboardingStepUrl,
+  writeOnboardingDraft,
+} from "@/lib/pro/onboarding-draft";
+import {
+  ACCOUNT_STEP_INCOMPLETE_MESSAGE,
+  accountFieldsFromUser,
+  isAccountStepComplete,
+} from "@/lib/pro/onboarding-account-fields";
+import {
+  isProAddressComplete,
+  ProAddressFields,
+} from "@/components/pro/pro-address-fields";
+import { ProStylePicker } from "@/components/pro/pro-style-picker";
+import {
+  isAlreadyRegisteredAuthError,
+} from "@/lib/auth/signup-flow";
 import { slugify } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Banknote, Check, Loader2, ShieldCheck, Sparkles } from "lucide-react";
+import type { PlanTier, PlanBilling } from "@/lib/stripe/plans";
 
 const STEPS = ["Compte", "Infos", "Styles", "Slug", "Abonnement", "Stripe"] as const;
-const ONBOARDING_STEP_KEY = "retvy:pro-onboarding:step";
-const ONBOARDING_SLUG_KEY = "retvy:pro-onboarding:slug";
 const MAX_STEP = STEPS.length - 1;
 const SLUG_PATTERN = /^[a-z0-9]{3,32}$/;
-
-function readStoredSlug(): string {
-  try {
-    return sessionStorage.getItem(ONBOARDING_SLUG_KEY)?.trim() ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function rememberSlug(value: string) {
-  try {
-    if (SLUG_PATTERN.test(value)) {
-      sessionStorage.setItem(ONBOARDING_SLUG_KEY, value);
-    }
-  } catch {
-    /* ignore */
-  }
-}
 type SlugState = "idle" | "checking" | "available" | "taken" | "invalid";
 
 type StoredSession = {
@@ -60,6 +64,21 @@ type EstablishSessionResult = {
   pendingEmail: boolean;
 };
 
+/* ─── Tarifs ─────────────────────────────────────────────────── */
+const TIER_LABELS: Record<PlanTier, { short: string; long: string }> = {
+  "1":     { short: "1",     long: "1 tatoueur" },
+  "23":    { short: "2 – 3", long: "2 – 3 tatoueurs" },
+  "3plus": { short: "3+",    long: "3+ tatoueurs" },
+};
+
+const MONTHLY_PRICES: Record<PlanTier, number> = { "1": 30, "23": 60, "3plus": 90 };
+const ANNUAL_PRICES:  Record<PlanTier, number> = { "1": 300, "23": 600, "3plus": 900 };
+
+function getPrice(tier: PlanTier, billing: PlanBilling) {
+  return billing === "monthly" ? MONTHLY_PRICES[tier] : ANNUAL_PRICES[tier];
+}
+
+/* ─── Composant ──────────────────────────────────────────────── */
 export function OnboardingWizard() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
@@ -74,54 +93,165 @@ export function OnboardingWizard() {
 
   const [artistName, setArtistName] = useState("");
   const [studio, setStudio] = useState("");
-  const [city, setCity] = useState("Paris");
+  const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [phone, setPhone] = useState("");
 
-  const [styles, setStyles] = useState<string[]>([]);
+  const [styleSelection, setStyleSelection] = useState<ProStyleSelection>({
+    familySlugs: [],
+    styleIds: [],
+  });
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [slugState, setSlugState] = useState<SlugState>("idle");
   const [envError, setEnvError] = useState<string | null>(null);
   const [emailPending, setEmailPending] = useState(false);
+  const [emailConfirmed, setEmailConfirmed] = useState(false);
   const [abonnementNeedsReconnect, setAbonnementNeedsReconnect] = useState(false);
-  /** Session établie à l'étape Compte (cookies Supabase + repli mémoire). */
   const [authSession, setAuthSession] = useState<Session | null>(null);
-  /** Ref stable pour requireSession (évite perte entre étapes). */
   const authSessionRef = useRef<Session | null>(null);
+  const draftHydratedRef = useRef(false);
+  const [draftPersistReady, setDraftPersistReady] = useState(false);
+
+  // ── Abonnement state ──
+  const [selectedTier, setSelectedTier] = useState<PlanTier>("1");
+  const [selectedBilling, setSelectedBilling] = useState<PlanBilling>("monthly");
+  /** null = pas encore choisi, true = promo, false = tarif normal */
+  const [promoChoice, setPromoChoice] = useState<boolean | null>(null);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralValid, setReferralValid] = useState<boolean | null>(null);
+  const [referralChecking, setReferralChecking] = useState(false);
+
+  const goToStep = useCallback((next: number, urlOptions?: Parameters<typeof syncProOnboardingStepUrl>[1]) => {
+    const clamped = Math.min(MAX_STEP, Math.max(0, next));
+    setStep(clamped);
+    syncProOnboardingStepUrl(clamped, urlOptions);
+  }, []);
+
+  const applyAccountFieldsFromUser = useCallback((user: Session["user"]) => {
+    const fromUser = accountFieldsFromUser(user);
+    setFirstName((prev) => prev.trim() || fromUser.firstName);
+    setLastName((prev) => prev.trim() || fromUser.lastName);
+    setEmail((prev) => prev.trim() || fromUser.email);
+    setPhone((prev) => prev.trim() || fromUser.phone);
+  }, []);
+
+  const prefillAccountFieldsFromAuth = useCallback(async () => {
+    const supabase = createClientOrNull();
+    if (!supabase) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    applyAccountFieldsFromUser(user);
+  }, [applyAccountFieldsFromUser]);
+
+  const requireAccountStepComplete = useCallback((): boolean => {
+    if (isAccountStepComplete({ firstName, lastName, email, phone })) return true;
+    setError(ACCOUNT_STEP_INCOMPLETE_MESSAGE);
+    goToStep(0);
+    return false;
+  }, [email, firstName, goToStep, lastName, phone]);
 
   useEffect(() => {
+    if (draftHydratedRef.current) return;
+    draftHydratedRef.current = true;
+
     setEnvError(getBrowserSupabaseEnvError());
-    const storedSlug = readStoredSlug();
-    if (storedSlug) setSlug(storedSlug);
-  }, []);
 
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(ONBOARDING_STEP_KEY);
-      if (raw == null) return;
-      const n = Number.parseInt(raw, 10);
-      if (Number.isFinite(n) && n >= 0 && n <= MAX_STEP) {
-        setStep(n);
-      }
-    } catch {
-      /* ignore */
+    const draft = readOnboardingDraft();
+    const sub = searchParams.get("sub");
+    const connect = searchParams.get("connect");
+    const stepParam = searchParams.get("step");
+
+    if (draft) {
+      setFirstName(draft.firstName);
+      setLastName(draft.lastName);
+      setEmail(draft.email);
+      setArtistName(draft.artistName);
+      setStudio(draft.studio);
+      setCity(draft.city);
+      setAddress(draft.address);
+      setPostalCode(draft.postalCode);
+      setPhone(draft.phone);
+      setStyleSelection(draft.styleSelection);
+      setSlug(draft.slug);
+      setSlugTouched(draft.slugTouched);
+      setEmailPending(draft.emailPending);
+      setEmailConfirmed(draft.emailConfirmed);
     }
-  }, []);
 
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(ONBOARDING_STEP_KEY, String(step));
-    } catch {
-      /* ignore */
-    }
-  }, [step]);
+    // Pré-remplir le code de parrainage depuis l'URL ?ref=
+    const refParam = searchParams.get("ref");
+    if (refParam) setReferralCode(refParam.toUpperCase().trim());
 
-  const checkSlug = useCallback(async (value: string) => {
-    if (!/^[a-z0-9]{3,32}$/.test(value)) {
-      setSlugState("invalid");
+    if (sub === "error") {
+      setError("La confirmation du paiement a échoué. Réessayez l'abonnement.");
+      goToStep(4, { extra: { sub: "error" } });
+      setDraftPersistReady(true);
+      void prefillAccountFieldsFromAuth();
       return;
     }
+
+    const externalReturn = sub === "ok" || connect === "done";
+    if (externalReturn && stepParam != null) {
+      const n = Number.parseInt(stepParam, 10);
+      if (Number.isFinite(n) && n >= 0 && n <= MAX_STEP) {
+        goToStep(n, {
+          extra: {
+            sub: sub ?? undefined,
+            connect: connect ?? undefined,
+            session_id: searchParams.get("session_id") ?? undefined,
+          },
+        });
+        setDraftPersistReady(true);
+        void prefillAccountFieldsFromAuth();
+        return;
+      }
+    }
+
+    if (draft) {
+      goToStep(draft.step);
+    } else if (stepParam != null) {
+      const n = Number.parseInt(stepParam, 10);
+      if (Number.isFinite(n) && n >= 0 && n <= MAX_STEP) {
+        goToStep(n);
+      }
+    }
+
+    setDraftPersistReady(true);
+    void prefillAccountFieldsFromAuth();
+  }, [searchParams, goToStep, prefillAccountFieldsFromAuth]);
+
+  useEffect(() => {
+    if (!draftPersistReady) return;
+    // Étape 1 (step 0) : pas de souvenir — on efface le brouillon
+    if (step === 0) { clearOnboardingDraft(); return; }
+    writeOnboardingDraft({
+      version: 1,
+      step,
+      firstName,
+      lastName,
+      email,
+      artistName,
+      studio,
+      city,
+      address,
+      postalCode,
+      phone,
+      styleSelection,
+      slug,
+      slugTouched,
+      emailPending,
+      emailConfirmed,
+    });
+  }, [
+    step, firstName, lastName, email, artistName, studio, city, address,
+    postalCode, phone, styleSelection, slug, slugTouched, emailPending,
+    emailConfirmed, draftPersistReady,
+  ]);
+
+  const checkSlug = useCallback(async (value: string) => {
+    if (!/^[a-z0-9]{3,32}$/.test(value)) { setSlugState("invalid"); return; }
     setSlugState("checking");
     const res = await fetch(`/api/pro/slug?slug=${encodeURIComponent(value)}`);
     const data = await res.json();
@@ -135,111 +265,50 @@ export function OnboardingWizard() {
   }, [slug, step, checkSlug]);
 
   useEffect(() => {
-    if (slugState === "available" && SLUG_PATTERN.test(slug.trim())) {
-      rememberSlug(slug.trim());
-    }
-  }, [slug, slugState]);
-
-  useEffect(() => {
     if (!done) return;
-    const current = (slug.trim() || readStoredSlug()).trim();
+    const current = slug.trim();
     if (SLUG_PATTERN.test(current)) return;
-
     const supabase = createClientOrNull();
     if (!supabase) return;
-
     void supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      const { data } = await supabase
-        .from("pro_profiles")
-        .select("slug")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (data?.slug && SLUG_PATTERN.test(data.slug)) {
-        setSlug(data.slug);
-        rememberSlug(data.slug);
-      }
+      const { data } = await supabase.from("pro_profiles").select("slug").eq("user_id", user.id).maybeSingle();
+      if (data?.slug && SLUG_PATTERN.test(data.slug)) setSlug(data.slug);
     });
   }, [done, slug]);
 
-  useEffect(() => {
-    const stepParam = searchParams.get("step");
-    if (stepParam != null) {
-      const n = Number.parseInt(stepParam, 10);
-      if (Number.isFinite(n) && n >= 0 && n <= MAX_STEP) {
-        setStep(n);
-      }
-    }
-
-    if (searchParams.get("sub") === "error") {
-      setError("La confirmation du paiement a échoué. Réessayez l'abonnement.");
-      setStep(4);
-    }
-  }, [searchParams]);
-
-  function isAlreadyRegistered(message: string): boolean {
-    const m = message.toLowerCase();
-    return (
-      m.includes("already") ||
-      m.includes("registered") ||
-      m.includes("exists") ||
-      m.includes("duplicate")
-    );
-  }
-
-  function toggleStyle(style: string) {
-    setStyles((prev) =>
-      prev.includes(style) ? prev.filter((s) => s !== style) : [...prev, style],
-    );
-  }
-
-  const readStoredSession = useCallback(
-    (): StoredSession | null => readOnboardingStoredSession(),
-    [],
-  );
+  const readStoredSession = useCallback((): StoredSession | null => readOnboardingStoredSession(), []);
 
   const rememberSession = useCallback((session: Session | null) => {
     if (!session) return;
+    setEmailPending(false);
     authSessionRef.current = session;
     setAuthSession(session);
     try {
       sessionStorage.setItem(
         ONBOARDING_SESSION_KEY,
-        JSON.stringify({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-        } satisfies StoredSession),
+        JSON.stringify({ access_token: session.access_token, refresh_token: session.refresh_token } satisfies StoredSession),
       );
-    } catch {
-      /* quota / mode privé */
+    } catch { /* quota / mode privé */ }
+    applyAccountFieldsFromUser(session.user);
+  }, [applyAccountFieldsFromUser]);
+
+  const syncSessionToClient = useCallback(async (session: Session | StoredSession): Promise<Session | null> => {
+    const supabase = createClientOrNull();
+    if (!supabase) return null;
+    const { data, error } = await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    });
+    if (error) {
+      console.warn("[onboarding] setSession:", error.message);
+      if ("user" in session && session.user) { rememberSession(session as Session); return session as Session; }
+      return null;
     }
-  }, []);
-
-  const syncSessionToClient = useCallback(
-    async (session: Session | StoredSession): Promise<Session | null> => {
-      const supabase = createClientOrNull();
-      if (!supabase) return null;
-
-      const { data, error } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
-
-      if (error) {
-        console.warn("[onboarding] setSession:", error.message);
-        if ("user" in session && session.user) {
-          rememberSession(session as Session);
-          return session as Session;
-        }
-        return null;
-      }
-
-      const active = data.session;
-      if (active) rememberSession(active);
-      return active;
-    },
-    [rememberSession],
-  );
+    const active = data.session;
+    if (active) rememberSession(active);
+    return active;
+  }, [rememberSession]);
 
   const restoreSessionFromStorage = useCallback(async (): Promise<Session | null> => {
     const active = await restoreSessionFromOnboardingStorage();
@@ -247,15 +316,12 @@ export function OnboardingWizard() {
     return active;
   }, [rememberSession]);
 
-  useEffect(() => {
-    void restoreSessionFromStorage();
-  }, [restoreSessionFromStorage]);
+  useEffect(() => { void restoreSessionFromStorage(); }, [restoreSessionFromStorage]);
 
   useEffect(() => {
     const sub = searchParams.get("sub");
     const sessionId = searchParams.get("session_id");
     const connect = searchParams.get("connect");
-
     if (sub !== "ok" && connect !== "done") return;
 
     void (async () => {
@@ -267,10 +333,8 @@ export function OnboardingWizard() {
         const session = await restoreSessionFromStorage();
         if (!session) {
           setAbonnementNeedsReconnect(true);
-          setError(
-            "Session expirée après le paiement. Reconnectez-vous avec le même email (étape Compte) pour accéder au dashboard.",
-          );
-          if (sub === "ok") setStep(4);
+          setError("Session expirée après le paiement. Reconnectez-vous avec le même email (étape Compte) pour accéder au dashboard.");
+          if (sub === "ok") goToStep(4);
           return;
         }
 
@@ -288,57 +352,37 @@ export function OnboardingWizard() {
           }
         }
 
-        const storedSlug = readStoredSlug();
-        if (storedSlug) setSlug(storedSlug);
+        const storedDraft = readOnboardingDraft();
+        if (storedDraft?.slug) setSlug(storedDraft.slug);
 
-        if (sub === "ok") {
-          setStep(5);
-          setDone(true);
-          window.history.replaceState({}, "", "/pro/inscription?step=5&sub=ok");
-        } else if (connect === "done") {
-          setStep(5);
-          setDone(true);
-          window.history.replaceState({}, "", "/pro/inscription?step=5");
-        }
+        if (sub === "ok") { goToStep(5, { extra: { sub: "ok" } }); setDone(true); }
+        else if (connect === "done") { goToStep(5, { extra: { connect: "done" } }); setDone(true); }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur");
-        if (sub === "ok") setStep(4);
+        if (sub === "ok") goToStep(4);
       } finally {
         setLoading(false);
       }
     })();
-  }, [searchParams, restoreSessionFromStorage]);
+  }, [searchParams, restoreSessionFromStorage, goToStep]);
 
   async function signInWithPassword() {
     const supabase = createClientOrNull();
-    if (!supabase) {
-      throw new Error(
-        getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
-      );
-    }
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    if (!supabase) throw new Error(getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.");
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       const msg = error.message.toLowerCase();
-      if (msg.includes("invalid") || msg.includes("credentials")) {
-        throw new Error("Mot de passe incorrect pour cet email.");
-      }
-      throw new Error(error.message);
+      if (msg.includes("invalid") || msg.includes("credentials")) throw new Error("Mot de passe incorrect pour cet email.");
+      if (msg.includes("not confirmed") || msg.includes("email")) throw new Error("Email non confirmé — vérifiez votre boîte mail avant de continuer.");
+      throw new Error("Une erreur est survenue, réessayez.");
     }
     if (!data.session) throw new Error("Session non établie après connexion.");
     return (await syncSessionToClient(data.session)) ?? data.session;
   }
 
-  /** Crée le compte + session à l'étape Compte. */
   async function establishSession(): Promise<EstablishSessionResult> {
     const supabase = createClientOrNull();
-    if (!supabase) {
-      throw new Error(
-        getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
-      );
-    }
+    if (!supabase) throw new Error(getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.");
 
     const { data: existing } = await supabase.auth.getSession();
     if (existing.session) {
@@ -358,58 +402,38 @@ export function OnboardingWizard() {
       if (synced) return { session: synced, pendingEmail: false };
     }
 
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-      window.location.origin;
-    const emailRedirectTo = `${appUrl}/api/auth/callback?next=${encodeURIComponent("/pro/inscription")}`;
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo,
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          role: "pro",
-          ...(phone ? { phone } : {}),
-        },
-      },
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "pro", email, password, firstName, lastName, phone: phone.trim() || undefined }),
     });
+    const payload = (await res.json()) as { error?: string; code?: string; emailSent?: boolean; sessionEstablished?: boolean };
 
-    if (error) {
-      if (isAlreadyRegistered(error.message)) {
+    if (!res.ok) {
+      if (payload.code === "already_registered" || isAlreadyRegisteredAuthError(payload.error ?? "")) {
         setEmailPending(false);
         const session = await signInWithPassword();
         return { session, pendingEmail: false };
       }
-      throw new Error(error.message);
+      throw new Error(payload.error ?? "Inscription échouée");
     }
 
-    if (data.user?.identities?.length === 0) {
-      setEmailPending(false);
-      const session = await signInWithPassword();
-      return { session, pendingEmail: false };
-    }
-
-    if (!data.session) {
-      setEmailPending(true);
-      return { session: null, pendingEmail: true };
-    }
+    if (payload.emailSent) { setEmailPending(true); return { session: null, pendingEmail: true }; }
 
     setEmailPending(false);
-    const session = await syncSessionToClient(data.session);
-    return { session: session ?? data.session, pendingEmail: false };
+    const { data: fresh } = await supabase.auth.getSession();
+    if (fresh.session) {
+      const session = await syncSessionToClient(fresh.session);
+      return { session: session ?? fresh.session, pendingEmail: false };
+    }
+
+    const session = await signInWithPassword();
+    return { session, pendingEmail: false };
   }
 
-  /** À l'étape Slug : réutilise la session ou reconnecte avec email/mot de passe. */
   async function requireSession(): Promise<Session> {
     const supabase = createClientOrNull();
-    if (!supabase) {
-      throw new Error(
-        getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
-      );
-    }
+    if (!supabase) throw new Error(getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.");
 
     const { data: current } = await supabase.auth.getSession();
     if (current.session?.access_token) {
@@ -439,64 +463,86 @@ export function OnboardingWizard() {
       if (session?.access_token) return session;
     }
 
-    throw new Error(
-      "Session expirée. Revenez à l'étape Compte et reconnectez-vous avec le même email et mot de passe.",
-    );
+    throw new Error("Session expirée. Revenez à l'étape Compte et reconnectez-vous avec le même email et mot de passe.");
   }
 
   function apiAuthHeaders(session?: Session | null): HeadersInit {
     const headers: HeadersInit = { "Content-Type": "application/json" };
-    const token =
-      session?.access_token ?? authSessionRef.current?.access_token;
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+    const token = session?.access_token ?? authSessionRef.current?.access_token;
+    if (token) headers.Authorization = `Bearer ${token}`;
     return headers;
   }
 
   async function createProfile(session: Session) {
+    const supabase = createClientOrNull();
+    if (!supabase) throw new Error(getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.");
+
+    const catalog = await fetchTattooStyleCatalog(supabase);
+    const styleIds = resolveStyleIdsForSave(catalog, styleSelection);
+    if (styleIds.length === 0) throw new Error("Sélectionnez au moins une famille de styles.");
+
+    const payload = {
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      artist_name: artistName.trim(),
+      studio: studio.trim() || null,
+      city: city.trim(),
+      address: address.trim() || null,
+      postal_code: postalCode.trim() || null,
+      phone: phone.trim(),
+      style_ids: styleIds,
+      slug: slug.trim(),
+    };
+
+    console.error("[onboarding] POST /api/pro/profile payload", { ...payload, style_ids_count: styleIds.length });
+
     const res = await fetch("/api/pro/profile", {
       method: "POST",
       headers: apiAuthHeaders(session),
       credentials: "include",
-      body: JSON.stringify({
-        first_name: firstName,
-        last_name: lastName,
-        artist_name: artistName,
-        studio: studio || null,
-        city,
-        address: address || null,
-        phone,
-        styles,
-        slug,
-      }),
+      body: JSON.stringify(payload),
     });
-    const data = (await res.json()) as { error?: string; slug?: string };
-    if (!res.ok) throw new Error(data.error ?? "Erreur profil");
+    const data = (await res.json()) as { error?: string; slug?: string; issues?: Array<{ path: string; label: string; message: string }> };
+    if (!res.ok) {
+      console.error("[onboarding] POST /api/pro/profile failed", { status: res.status, error: data.error, issues: data.issues });
+      throw new Error(data.error ?? "Erreur profil");
+    }
     const savedSlug = (data.slug ?? slug).trim();
-    if (savedSlug) {
-      setSlug(savedSlug);
-      rememberSlug(savedSlug);
+    if (savedSlug) setSlug(savedSlug);
+  }
+
+  async function validateReferralCodeInput(code: string) {
+    const trimmed = code.toUpperCase().trim();
+    if (!trimmed) { setReferralValid(null); return; }
+    setReferralChecking(true);
+    try {
+      const res = await fetch("/api/pro/referral", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: trimmed }),
+      });
+      const data = (await res.json()) as { valid?: boolean };
+      setReferralValid(data.valid ?? false);
+    } catch {
+      setReferralValid(null);
+    } finally {
+      setReferralChecking(false);
     }
   }
 
-  async function startCheckout() {
+  async function startCheckout(wantsPromo: boolean) {
     setLoading(true);
     setError(null);
     setAbonnementNeedsReconnect(false);
 
     const supabase = createClientOrNull();
     if (!supabase) {
-      setError(
-        getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
-      );
+      setError(getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.");
       setLoading(false);
       return;
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
       setAbonnementNeedsReconnect(true);
@@ -507,36 +553,31 @@ export function OnboardingWizard() {
     rememberSession(session);
 
     const checkoutEmail = email.trim() || session.user.email || "";
-    const checkoutName =
-      `${firstName} ${lastName}`.trim() || artistName.trim() || "Pro Retvy";
-
-    const supabaseFunctionsBase = getPublicSupabaseUrl().replace(/\/$/, "");
-    const checkoutUrl = `${supabaseFunctionsBase}/functions/v1/stripe-checkout`;
+    const checkoutName = `${firstName} ${lastName}`.trim() || artistName.trim() || "Pro Retvy";
 
     try {
-      const res = await fetch(checkoutUrl, {
+      const res = await fetch("/api/stripe/checkout/create", {
         method: "POST",
-        headers: {
-          ...apiAuthHeaders(session),
-          apikey: getPublicSupabaseAnonKey(),
-        },
+        headers: apiAuthHeaders(session),
+        credentials: "include",
         body: JSON.stringify({
+          tier: selectedTier,
+          billing: selectedBilling,
+          promo: wantsPromo,
           email: checkoutEmail,
           name: checkoutName,
           userId: session.user.id,
+          referralCode: referralCode.trim() || undefined,
         }),
       });
       const data = (await res.json()) as { error?: string; url?: string };
-      if (!res.ok) {
-        throw new Error(data.error ?? "Erreur Stripe");
-      }
-      if (!data.url) {
-        throw new Error("Stripe n'a pas renvoyé d'URL de paiement.");
-      }
+      if (!res.ok) throw new Error(data.error ?? "Erreur Stripe");
+      if (!data.url) throw new Error("Stripe n'a pas renvoyé d'URL de paiement.");
       window.location.href = data.url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
       setLoading(false);
+      setPromoChoice(null); // retour au sélecteur de plan pour afficher l'erreur
     }
   }
 
@@ -546,21 +587,15 @@ export function OnboardingWizard() {
 
     const supabase = createClientOrNull();
     if (!supabase) {
-      setError(
-        getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
-      );
+      setError(getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.");
       setLoading(false);
       return;
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
-      setError(
-        "Session expirée. Retournez à l'étape Compte pour vous reconnecter.",
-      );
+      setError("Session expirée. Retournez à l'étape Compte pour vous reconnecter.");
       setLoading(false);
       return;
     }
@@ -574,12 +609,8 @@ export function OnboardingWizard() {
         credentials: "include",
       });
       const data = (await res.json()) as { error?: string; url?: string };
-      if (!res.ok) {
-        throw new Error(data.error ?? "Erreur Stripe Connect");
-      }
-      if (!data.url) {
-        throw new Error("Stripe n'a pas renvoyé d'URL Connect.");
-      }
+      if (!res.ok) throw new Error(data.error ?? "Erreur Stripe Connect");
+      if (!data.url) throw new Error("Stripe n'a pas renvoyé d'URL Connect.");
       window.location.href = data.url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
@@ -587,31 +618,17 @@ export function OnboardingWizard() {
     }
   }
 
-  function goToProDashboard() {
-    window.location.href = "/pro/dashboard";
-  }
+  function goToProDashboard() { window.location.href = "/pro/dashboard"; }
 
   async function finalize() {
     setLoading(true);
     try {
       const supabase = createClientOrNull();
-      if (!supabase) {
-        throw new Error(
-          getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.",
-        );
-      }
+      if (!supabase) throw new Error(getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante.");
       const session = await requireSession();
-      await supabase
-        .from("pro_profiles")
-        .update({ status: "active" })
-        .eq("user_id", session.user.id);
-      rememberSlug(slug.trim() || readStoredSlug());
+      await supabase.from("pro_profiles").update({ status: "active" }).eq("user_id", session.user.id);
+      clearOnboardingDraft();
       setDone(true);
-      try {
-        sessionStorage.removeItem(ONBOARDING_STEP_KEY);
-      } catch {
-        /* ignore */
-      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -630,16 +647,9 @@ export function OnboardingWizard() {
       setLoading(true);
       try {
         const { session, pendingEmail } = await establishSession();
-        if (!session && pendingEmail) {
-          setStep(1);
-          return;
-        }
-        if (!session?.access_token) {
-          throw new Error(
-            "Session non établie après inscription. Réessayez ou connectez-vous.",
-          );
-        }
-        setStep(1);
+        if (!session && pendingEmail) { goToStep(1); return; }
+        if (!session?.access_token) throw new Error("Session non établie après inscription. Réessayez ou connectez-vous.");
+        goToStep(1);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur");
       } finally {
@@ -649,44 +659,45 @@ export function OnboardingWizard() {
     }
 
     if (step === 1) {
-      if (!artistName || !city || !phone) {
-        setError("Nom d'artiste, ville et téléphone requis.");
+      if (!requireAccountStepComplete()) return;
+      if (!artistName.trim() || !phone.trim()) { setError("Nom d'artiste et téléphone requis."); return; }
+      if (!isProAddressComplete({ address, city })) {
+        setError("Adresse et ville requises. Choisissez une suggestion ou saisissez-les manuellement.");
         return;
       }
-      setStep(2);
+      goToStep(2);
       return;
     }
 
     if (step === 2) {
-      if (styles.length === 0) {
-        setError("Sélectionnez au moins un style.");
-        return;
+      if (!requireAccountStepComplete()) return;
+      const supabase = createClientOrNull();
+      if (!supabase) { setError(getBrowserSupabaseEnvError() ?? "Configuration Supabase manquante."); return; }
+      setLoading(true);
+      try {
+        const catalog = await fetchTattooStyleCatalog(supabase);
+        const styleIds = resolveStyleIdsForSave(catalog, styleSelection);
+        if (styleIds.length === 0) { setError("Sélectionnez au moins une famille de styles."); return; }
+        goToStep(3);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erreur de chargement des styles.");
+      } finally {
+        setLoading(false);
       }
-      setStep(3);
       return;
     }
 
     if (step === 3) {
-      if (slugState !== "available") {
-        setError("Choisissez un slug disponible.");
-        return;
-      }
-      if (emailPending) {
-        setError(
-          "Confirmez d'abord votre email (lien reçu par mail), puis revenez créer votre slug.",
-        );
-        return;
-      }
+      if (!requireAccountStepComplete()) return;
+      if (slugState !== "available") { setError("Choisissez un slug disponible."); return; }
       setLoading(true);
       try {
         const session = await requireSession();
-        if (!session.access_token) {
-          throw new Error("Session invalide. Reconnectez-vous à l'étape Compte.");
-        }
+        if (!session.access_token) throw new Error("Session invalide. Reconnectez-vous à l'étape Compte.");
         await createProfile(session);
         setError(null);
         setAbonnementNeedsReconnect(false);
-        setStep(4);
+        goToStep(4);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur");
       } finally {
@@ -696,11 +707,186 @@ export function OnboardingWizard() {
     }
   }
 
+  /* ─── Render step 4 : sélecteur plan + promo ─────────────── */
+  function renderSubscriptionStep() {
+    const price = getPrice(selectedTier, selectedBilling);
+    const isAnnual = selectedBilling === "annual";
+
+    if (abonnementNeedsReconnect) {
+      return (
+        <div className="rounded-xl border border-blue-500/40 bg-blue-500/10 p-4 space-y-4">
+          <p className="text-sm text-blue-200">
+            Session expirée ou introuvable. Reconnectez-vous avec le même email et mot de passe pour enregistrer votre carte.
+          </p>
+          <Button type="button" className="w-full" onClick={() => { setAbonnementNeedsReconnect(false); setError(null); goToStep(0); }}>
+            Retour à l&apos;étape Compte
+          </Button>
+        </div>
+      );
+    }
+
+    /* Étape A : choix du plan */
+    if (promoChoice === null) {
+      return (
+        <div className="space-y-5">
+          {/* Toggle mensuel / annuel */}
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">Facturation</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(["monthly", "annual"] as const).map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setSelectedBilling(b)}
+                  className={`rounded-xl border px-4 py-3 text-sm font-medium text-left transition-colors ${
+                    selectedBilling === b
+                      ? "border-blue-500 bg-blue-500/10 text-blue-300"
+                      : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500"
+                  }`}
+                >
+                  {b === "monthly" ? (
+                    "Mensuel"
+                  ) : (
+                    <>
+                      Annuel
+                      <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                        2 mois offerts
+                      </span>
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sélecteur tatoueurs */}
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">Nombre de tatoueurs</p>
+            <div className="grid grid-cols-3 gap-2">
+              {(["1", "23", "3plus"] as PlanTier[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setSelectedTier(t)}
+                  className={`rounded-xl border px-3 py-3 text-center transition-colors ${
+                    selectedTier === t
+                      ? "border-blue-500 bg-blue-500/10 text-blue-300"
+                      : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500"
+                  }`}
+                >
+                  <span className="block text-lg font-bold">{TIER_LABELS[t].short}</span>
+                  <span className="mt-0.5 block text-[11px] text-zinc-500">tatoueur{t !== "1" ? "s" : ""}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Affichage prix */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-5 py-4">
+            <div className="flex items-baseline gap-1">
+              <span className="text-[40px] font-bold tabular-nums leading-none">{price}</span>
+              <span className="text-lg font-semibold text-zinc-400"> €</span>
+              <span className="ml-1 text-sm text-zinc-500">/ {isAnnual ? "an" : "mois"}</span>
+            </div>
+            <p className="mt-1 text-xs text-zinc-600">
+              {isAnnual
+                ? `${Math.round(price / 10)} €/mois · 2 mois offerts — sans engagement`
+                : "Sans engagement · résiliable à tout moment"}
+            </p>
+          </div>
+
+          {/* Carte promo optionnelle */}
+          <div className="rounded-xl border border-blue-900/60 bg-blue-950/30 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base">✦</span>
+                <span className="text-sm font-semibold text-blue-200">Offre nouveaux inscrits</span>
+              </div>
+              <span className="rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                ⭐ Recommandé
+              </span>
+            </div>
+            <p className="mb-3 text-[13px] text-blue-300/80 leading-relaxed">
+              Profitez de vos <strong className="text-blue-200">3 premiers mois à 60 €</strong> — quel que soit le plan choisi.{" "}
+              Pas d&apos;obligation : vous pouvez commencer directement au tarif normal si vous préférez.
+            </p>
+            {/* Champ code de parrainage */}
+            <div className="mt-1 mb-3">
+              <label className="block text-xs font-medium text-zinc-400 uppercase tracking-widest mb-1.5">
+                Code de parrainage <span className="normal-case text-zinc-500 font-normal">(optionnel)</span>
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => {
+                    const v = e.target.value.toUpperCase().slice(0, 12);
+                    setReferralCode(v);
+                    setReferralValid(null);
+                  }}
+                  onBlur={() => void validateReferralCodeInput(referralCode)}
+                  placeholder="Ex : AB3XK7PQ"
+                  maxLength={12}
+                  className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm font-mono tracking-wider text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                {referralChecking && (
+                  <span className="text-xs text-zinc-500">Vérification…</span>
+                )}
+                {!referralChecking && referralValid === true && (
+                  <span className="text-xs text-green-400 font-medium">✓ Code valide — 1 mois offert</span>
+                )}
+                {!referralChecking && referralValid === false && referralCode.length > 0 && (
+                  <span className="text-xs text-red-400">Code invalide</span>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { setPromoChoice(true); void startCheckout(true); }}
+                disabled={loading}
+                className="relative overflow-hidden rounded-lg bg-blue-600 px-3 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
+              >
+                <span className="absolute inset-x-0 top-0 bg-blue-900/70 py-0.5 text-[9px] font-bold uppercase tracking-widest text-blue-300">
+                  ✦ Notre recommandation
+                </span>
+                <span className="mt-3 block">
+                  {loading && promoChoice === true ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Commencer avec l'offre · 60 €"}
+                </span>
+                <span className="block text-[10px] font-normal opacity-75">Idéal pour découvrir la plateforme</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setPromoChoice(false); void startCheckout(false); }}
+                disabled={loading}
+                className="rounded-lg border border-blue-800/60 px-3 py-2.5 text-center text-sm font-medium text-blue-300 transition-colors hover:bg-blue-900/30 disabled:opacity-60"
+              >
+                {loading && promoChoice === false ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Tarif normal dès maintenant"}
+              </button>
+            </div>
+          </div>
+
+          <Button type="button" variant="ghost" className="w-full" onClick={() => goToStep(5)} disabled={loading}>
+            Passer cette étape →
+          </Button>
+        </div>
+      );
+    }
+
+    /* Étape B : en cours de redirection → spinner */
+    return (
+      <div className="flex flex-col items-center gap-4 py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+        <p className="text-sm text-zinc-400">Redirection vers le paiement sécurisé…</p>
+      </div>
+    );
+  }
+
+  /* ─── Écran final ────────────────────────────────────────── */
   if (done) {
-    const profileSlug = (slug.trim() || readStoredSlug()).trim();
-    const profilePath = SLUG_PATTERN.test(profileSlug)
-      ? `/ink/${profileSlug}`
-      : null;
+    const profileSlug = slug.trim();
+    const profilePath = SLUG_PATTERN.test(profileSlug) ? `/ink/${profileSlug}` : null;
 
     return (
       <Card>
@@ -711,52 +897,32 @@ export function OnboardingWizard() {
           <h2 className="mt-6 text-2xl font-bold">Bienvenue sur Retvy !</h2>
           <p className="mt-2 text-zinc-500">
             {profilePath ? (
-              <>
-                Votre profil{" "}
-                <span className="text-blue-400">{profilePath}</span> est prêt.
-              </>
+              <>Votre profil <span className="text-blue-400">{profilePath}</span> est prêt.</>
             ) : (
               "Votre espace pro est prêt."
             )}
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             {profilePath ? (
-              <Link
-                href={profilePath}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/50 px-5 py-2.5 text-sm text-blue-400 transition-colors hover:bg-blue-500/10"
-              >
+              <Link href={profilePath} className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/50 px-5 py-2.5 text-sm text-blue-400 transition-colors hover:bg-blue-500/10">
                 Voir mon profil
               </Link>
             ) : null}
-            <Button type="button" onClick={goToProDashboard}>
-              Dashboard
-            </Button>
+            <Button type="button" onClick={goToProDashboard}>Dashboard</Button>
           </div>
         </CardContent>
       </Card>
     );
   }
 
+  /* ─── Wizard principal ───────────────────────────────────── */
   return (
     <Card>
       <CardHeader>
         <div className="flex gap-2">
           {STEPS.map((label, i) => (
-            <div
-              key={label}
-              className={`flex flex-1 flex-col items-center gap-1 text-xs ${
-                i <= step ? "text-blue-400" : "text-zinc-600"
-              }`}
-            >
-              <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full border ${
-                  i < step
-                    ? "border-blue-500 bg-blue-500/20"
-                    : i === step
-                      ? "border-blue-500"
-                      : "border-zinc-700"
-                }`}
-              >
+            <div key={label} className={`flex flex-1 flex-col items-center gap-1 text-xs ${i <= step ? "text-blue-400" : "text-zinc-600"}`}>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full border ${i < step ? "border-blue-500 bg-blue-500/20" : i === step ? "border-blue-500" : "border-zinc-700"}`}>
                 {i < step ? <Check className="h-4 w-4" /> : i + 1}
               </span>
               <span className="hidden sm:block">{label}</span>
@@ -765,22 +931,8 @@ export function OnboardingWizard() {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {envError && (
-          <p className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-blue-300">
-            {envError}
-          </p>
-        )}
-        {emailPending && (
-          <p className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-700 dark:text-blue-300">
-            Un email de confirmation vous a été envoyé par Supabase. Validez-le
-            avant l&apos;étape finale (création du profil).
-          </p>
-        )}
-        {error && (
-          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
-            {error}
-          </p>
-        )}
+        {envError && <p className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-blue-300">{envError}</p>}
+        {error && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
 
         {step === 0 && (
           <div className="space-y-4">
@@ -809,35 +961,18 @@ export function OnboardingWizard() {
           <div className="space-y-4">
             <div>
               <label className="mb-1 block text-sm text-zinc-400">Nom d&apos;artiste *</label>
-              <Input
-                value={artistName}
-                onChange={(e) => {
-                  setArtistName(e.target.value);
-                  if (!slugTouched) setSlug(slugify(e.target.value));
-                }}
-                required
-              />
+              <Input value={artistName} onChange={(e) => { setArtistName(e.target.value); if (!slugTouched) setSlug(slugify(e.target.value)); }} required />
             </div>
             <div>
               <label className="mb-1 block text-sm text-zinc-400">Studio</label>
               <Input value={studio} onChange={(e) => setStudio(e.target.value)} />
             </div>
-            <div>
-              <label className="mb-1 block text-sm text-zinc-400">Ville *</label>
-              <select
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-zinc-100"
-              >
-                {CITIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-zinc-400">Adresse</label>
-              <Input value={address} onChange={(e) => setAddress(e.target.value)} />
-            </div>
+            <ProAddressFields
+              layout="stack"
+              address={address} city={city} postalCode={postalCode}
+              onAddressChange={setAddress} onCityChange={setCity} onPostalCodeChange={setPostalCode}
+              addressRequired cityRequired disabled={loading}
+            />
             <div>
               <label className="mb-1 block text-sm text-zinc-400">Téléphone *</label>
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
@@ -845,107 +980,25 @@ export function OnboardingWizard() {
           </div>
         )}
 
-        {step === 2 && (
-          <div className="flex flex-wrap gap-2">
-            {TATTOO_STYLES.map((style) => (
-              <button
-                key={style}
-                type="button"
-                onClick={() => toggleStyle(style)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                  styles.includes(style)
-                    ? "border-blue-500 bg-blue-500/15 text-blue-300"
-                    : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
-                }`}
-              >
-                {style}
-              </button>
-            ))}
-          </div>
-        )}
+        {step === 2 && <ProStylePicker value={styleSelection} onChange={setStyleSelection} disabled={loading} />}
 
         {step === 3 && (
           <div className="space-y-2">
             <label className="block text-sm text-zinc-400">URL publique /ink/</label>
             <div className="flex items-center gap-2">
               <span className="text-zinc-500">/ink/</span>
-              <Input
-                value={slug}
-                onChange={(e) => {
-                  setSlugTouched(true);
-                  setSlug(slugify(e.target.value));
-                }}
-              />
+              <Input value={slug} onChange={(e) => { setSlugTouched(true); setSlug(slugify(e.target.value)); }} />
             </div>
             <p className="text-xs text-zinc-500">
               {slugState === "checking" && "Vérification…"}
               {slugState === "available" && <span className="text-emerald-400">Disponible</span>}
               {slugState === "taken" && <span className="text-red-400">Déjà pris</span>}
-              {slugState === "invalid" && slug.length > 0 && (
-                <span className="text-red-400">3–32 caractères, a-z et 0-9</span>
-              )}
+              {slugState === "invalid" && slug.length > 0 && <span className="text-red-400">3–32 caractères, a-z et 0-9</span>}
             </p>
           </div>
         )}
 
-        {step === 4 && (
-          <div className="space-y-4">
-            {abonnementNeedsReconnect ? (
-              <div className="rounded-xl border border-blue-500/40 bg-blue-500/10 p-4 space-y-4">
-                <p className="text-sm text-blue-200">
-                  Session expirée ou introuvable. Reconnectez-vous avec le même
-                  email et mot de passe pour enregistrer votre carte.
-                </p>
-                <Button
-                  type="button"
-                  className="w-full"
-                  onClick={() => {
-                    setAbonnementNeedsReconnect(false);
-                    setError(null);
-                    setStep(0);
-                  }}
-                >
-                  Retour à l&apos;étape Compte
-                </Button>
-              </div>
-            ) : (
-              <>
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-              <div className="flex gap-3">
-                <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-400" />
-                <p className="text-sm text-zinc-300 leading-relaxed">
-                  <strong className="text-zinc-100">Aucun débit pendant 30 jours.</strong>{" "}
-                  Carte enregistrée pour l&apos;abonnement pro Retvy après la période
-                  d&apos;essai. Annulation en 1 clic.
-                </p>
-              </div>
-            </div>
-            <Button
-              type="button"
-              onClick={() => void startCheckout()}
-              disabled={loading}
-              className="w-full"
-              size="lg"
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Enregistrer ma carte (essai 30 jours)"
-              )}
-            </Button>
-              </>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => setStep(5)}
-              disabled={loading}
-            >
-              Passer cette étape →
-            </Button>
-          </div>
-        )}
+        {step === 4 && renderSubscriptionStep()}
 
         {step === 5 && (
           <div className="space-y-4">
@@ -954,32 +1007,12 @@ export function OnboardingWizard() {
                 <Banknote className="h-6 w-6 shrink-0 text-blue-400" />
                 <div>
                   <h3 className="font-medium">Stripe Connect</h3>
-                  <p className="mt-1 text-sm text-zinc-500">
-                    Recevez les acomptes clients directement sur votre compte.
-                  </p>
+                  <p className="mt-1 text-sm text-zinc-500">Recevez les acomptes clients directement sur votre compte.</p>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => void connectStripe()}
-                      disabled={loading}
-                      size="sm"
-                    >
-                      {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4" />
-                          Connecter Stripe
-                        </>
-                      )}
+                    <Button type="button" onClick={() => void connectStripe()} disabled={loading} size="sm">
+                      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Sparkles className="h-4 w-4" />Connecter Stripe</>}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void finalize()}
-                      disabled={loading}
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={() => void finalize()} disabled={loading}>
                       Terminer plus tard
                     </Button>
                   </div>
@@ -991,26 +1024,11 @@ export function OnboardingWizard() {
 
         {step < 4 && (
           <div className="flex justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setStep((s) => Math.max(0, s - 1))}
-              disabled={step === 0 || loading || !!envError}
-            >
+            <Button type="button" variant="ghost" onClick={() => { setError(null); goToStep(Math.max(0, step - 1)); }} disabled={step === 0 || loading || !!envError}>
               Retour
             </Button>
-            <Button
-              type="button"
-              onClick={() => void handleNext()}
-              disabled={loading || !!envError}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : step === 3 ? (
-                "Créer mon compte pro"
-              ) : (
-                "Continuer"
-              )}
+            <Button type="button" onClick={() => void handleNext()} disabled={loading || !!envError}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : step === 3 ? "Créer mon compte pro" : "Continuer"}
             </Button>
           </div>
         )}
