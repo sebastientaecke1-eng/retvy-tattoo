@@ -23,13 +23,26 @@ function UpdatePasswordContent() {
     if (!supabase) { setReady(true); return; }
 
     const tokenHash = searchParams.get("token_hash");
+    const accessToken = searchParams.get("access_token");
+    const refreshToken = searchParams.get("refresh_token");
     const type = searchParams.get("type");
 
     if (tokenHash && type === "recovery") {
-      // Vérifier le token côté client pour établir la session
+      // Via notre Brevo email : vérifier le token OTP côté client
       supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" }).then(({ error }) => {
         if (error) {
           setError("Lien invalide ou expiré. Demandez une nouvelle réinitialisation.");
+        }
+        setReady(true);
+      });
+      return;
+    }
+
+    if (accessToken && refreshToken && type === "recovery") {
+      // Via l'email Supabase : établir la session depuis les tokens
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+        if (error) {
+          setError("Session invalide ou expirée. Demandez une nouvelle réinitialisation.");
         }
         setReady(true);
       });

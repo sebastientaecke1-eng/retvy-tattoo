@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { AppPreferencesProvider } from "@/components/providers/app-preferences-provider";
 import { ThemeBootstrap } from "@/components/providers/theme-bootstrap";
+import { AuthRecoveryHandler } from "@/components/providers/auth-recovery-handler";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -18,7 +19,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Retvy — Tatouage & piercing, trouvez l'artiste idéal",
+  title: "Retvy — Trouvez votre tatoueur idéal",
   description:
     "Marketplace de réservation pour tatoueurs et pierceurs en France. L'IA qualifie votre projet avant de vous proposer les pros adaptés.",
 };
@@ -34,9 +35,10 @@ export default function RootLayout({
         <ThemeBootstrap />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-zinc-50 text-zinc-900 antialiased dark:bg-black dark:text-zinc-100`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-zinc-900 antialiased dark:bg-black dark:text-zinc-100`}
       >
         <AppPreferencesProvider>
+          <AuthRecoveryHandler />
           <Header />
           <main className="min-h-[calc(100vh-8rem)]">{children}</main>
           <Footer />
