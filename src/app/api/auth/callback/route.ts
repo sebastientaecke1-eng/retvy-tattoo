@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
+import { resolveSignupNextPath } from "@/lib/auth/signup-flow";
+import { userHasProProfile } from "@/lib/auth/post-auth-path";
 import { getAppUrl } from "@/lib/app-url";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createRouteHandlerClient } from "@/lib/supabase/route-handler";
-
-const DEFAULT_NEXT = "/client/dashboard";
-
-function safeNextPath(next: string | null): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
-    return DEFAULT_NEXT;
-  }
-  return next;
-}
 
 function confirmUrl(origin: string, params: Record<string, string>): string {
   const url = new URL("/auth/confirm", origin);
@@ -75,7 +69,7 @@ function humanizeAuthError(message: string): string {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const origin = resolveOrigin(request);
-  const next = safeNextPath(requestUrl.searchParams.get("next"));
+  const nextParam = requestUrl.searchParams.get("next");
 
   const oauthError =
     requestUrl.searchParams.get("error_description") ??
@@ -105,35 +99,32 @@ export async function GET(request: Request) {
     );
   }
 
+  const provisionalNext = resolveSignupNextPath(nextParam);
   const successRedirect = NextResponse.redirect(
-    confirmUrl(origin, { next }),
+    confirmUrl(origin, { next: provisionalNext }),
   );
   const supabase = await createRouteHandlerClient(successRedirect);
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
+      console.error("[api/auth/callback] exchangeCodeForSession", error);
       return NextResponse.redirect(
         confirmUrl(origin, { error: humanizeAuthError(error.message) }),
       );
     }
-    return successRedirect;
-  }
-
-  if (tokenHash && type) {
+  } else if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type,
     });
     if (error) {
+      console.error("[api/auth/callback] verifyOtp token_hash", error);
       return NextResponse.redirect(
         confirmUrl(origin, { error: humanizeAuthError(error.message) }),
       );
     }
-    return successRedirect;
-  }
-
-  if (token && type) {
+  } else if (token && type) {
     const email = requestUrl.searchParams.get("email");
     if (!email) {
       return NextResponse.redirect(
@@ -149,16 +140,52 @@ export async function GET(request: Request) {
       type,
     });
     if (error) {
+      console.error("[api/auth/callback] verifyOtp token", error);
       return NextResponse.redirect(
         confirmUrl(origin, { error: humanizeAuthError(error.message) }),
       );
     }
-    return successRedirect;
+  } else {
+    return NextResponse.redirect(
+      confirmUrl(origin, {
+        error: "Type de confirmation manquant ou non reconnu.",
+      }),
+    );
   }
 
-  return NextResponse.redirect(
-    confirmUrl(origin, {
-      error: "Type de confirmation manquant ou non reconnu.",
-    }),
+  // Pour un recovery, rediriger directement vers la page de changement de mot de passe
+  if (typeParam === "recovery") {
+    const recoveryDest = nextParam?.startsWith("/") && !nextParam.startsWith("//")
+      ? nextParam
+      : "/auth/update-password";
+    const recoveryRedirect = NextResponse.redirect(new URL(recoveryDest, origin).toString());
+    // Copier les cookies de session depuis successRedirect
+    const setCookieHeader = successRedirect.headers.get("set-cookie");
+    if (setCookieHeader) {
+      recoveryRedirect.headers.set("set-cookie", setCookieHeader);
+    }
+    return recoveryRedirect;
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let hasProProfile = false;
+  if (user) {
+    const admin = createAdminClient();
+    hasProProfile = await userHasProProfile(admin, user.id);
+  }
+
+  const resolvedNext = resolveSignupNextPath(
+    nextParam,
+    user?.user_metadata,
+    hasProProfile,
   );
+
+  if (resolvedNext !== provisionalNext) {
+    return NextResponse.redirect(confirmUrl(origin, { next: resolvedNext }));
+  }
+
+  return successRedirect;
 }
