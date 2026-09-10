@@ -17,5 +17,8 @@ export function getStripeSecretKey(): string {
 }
 
 export function getStripe() {
-  return new Stripe(getStripeSecretKey());
+  return new Stripe(getStripeSecretKey(), {
+    // Cloudflare Workers n'a pas les modules HTTP Node.js
+    httpClient: Stripe.createFetchHttpClient(),
+  });
 }
