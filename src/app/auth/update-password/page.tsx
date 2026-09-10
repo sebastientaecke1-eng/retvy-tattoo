@@ -22,10 +22,21 @@ function UpdatePasswordContent() {
     const supabase = createClientOrNull();
     if (!supabase) { setReady(true); return; }
 
-    const tokenHash = searchParams.get("token_hash");
-    const accessToken = searchParams.get("access_token");
-    const refreshToken = searchParams.get("refresh_token");
-    const type = searchParams.get("type");
+    // Lire depuis query params OU depuis le hash (Supabase met les tokens dans le hash)
+    let tokenHash = searchParams.get("token_hash");
+    let accessToken = searchParams.get("access_token");
+    let refreshToken = searchParams.get("refresh_token");
+    let type = searchParams.get("type");
+
+    if (!tokenHash && !accessToken && typeof window !== "undefined" && window.location.hash) {
+      try {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        accessToken = accessToken || hashParams.get("access_token");
+        refreshToken = refreshToken || hashParams.get("refresh_token");
+        type = type || hashParams.get("type");
+        tokenHash = tokenHash || hashParams.get("token_hash");
+      } catch {}
+    }
 
     if (tokenHash && type === "recovery") {
       // Via notre Brevo email : vérifier le token OTP côté client
