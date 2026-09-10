@@ -24,13 +24,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // On construit le lien via notre propre callback qui gère la session
+    // Lien direct vers la page de changement de mot de passe
+    // La page gère elle-même la vérification du token côté client
     const params = new URLSearchParams({
       token_hash: data.properties.hashed_token,
       type: "recovery",
-      next: "/auth/update-password",
     });
-    const resetLink = `${appUrl}/api/auth/callback?${params.toString()}`;
+    const resetLink = `${appUrl}/auth/update-password?${params.toString()}`;
 
     await sendBrevoEmail({
       to: [{ email }],
