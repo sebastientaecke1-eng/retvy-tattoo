@@ -32,6 +32,20 @@ export default function RootLayout({
   return (
     <html lang="fr" className="scroll-smooth dark" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function(){
+            try {
+              var h = window.location.hash;
+              if (!h || h.indexOf('type=recovery') === -1) return;
+              var p = new URLSearchParams(h.substring(1));
+              var at = p.get('access_token');
+              var rt = p.get('refresh_token');
+              if (at && rt) {
+                window.location.replace('/auth/update-password?access_token=' + encodeURIComponent(at) + '&refresh_token=' + encodeURIComponent(rt) + '&type=recovery');
+              }
+            } catch(e) {}
+          })();
+        ` }} />
         <ThemeBootstrap />
       </head>
       <body
