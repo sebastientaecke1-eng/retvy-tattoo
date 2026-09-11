@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isProStyleId } from "@/lib/pro/styles";
+import { isProPortfolioStyleSlug } from "@/lib/pro/tattoo-style-catalog";
 import { MAX_STUDIO_PHOTOS } from "@/lib/pro/studio";
 import { storagePublicUrl } from "@/lib/pro/storage-public-url";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
@@ -102,18 +102,18 @@ export async function POST(request: Request) {
     const fileId = crypto.randomUUID();
     const path = `${user.id}/${fileId}.${ext}`;
     const { error: upErr } = await admin.storage
-      .from("studio-photos")
+      .from("studio-photo")
       .upload(path, buffer, {
         contentType: file.type,
         upsert: false,
       });
 
     if (upErr) {
-      console.error("[upload] studio-photos", upErr);
+      console.error("[upload] studio-photo", upErr);
       return NextResponse.json({ error: upErr.message }, { status: 500 });
     }
 
-    const imageUrl = storagePublicUrl("studio-photos", path);
+    const imageUrl = storagePublicUrl("studio-photo", path);
     const { data: row, error: insErr } = await admin
       .from("pro_studio_photos")
       .insert({
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
   }
 
   const style = String(form.get("style") ?? "").toLowerCase();
-  if (!isProStyleId(style)) {
+  if (!(await isProPortfolioStyleSlug(admin, user.id, style))) {
     return NextResponse.json({ error: "Style invalide" }, { status: 400 });
   }
 

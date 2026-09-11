@@ -26,7 +26,7 @@ export async function DELETE(request: Request) {
   }
 
   if (item.storage_path) {
-    await admin.storage.from("studio-photos").remove([item.storage_path]);
+    await admin.storage.from("studio-photo").remove([item.storage_path]);
   }
 
   const { error: delErr } = await admin
