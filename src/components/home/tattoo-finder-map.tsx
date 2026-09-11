@@ -12,8 +12,8 @@ const CITY_ZOOM = 11;
 const PRO_ZOOM = 11;
 
 // Dark map tile (CartoDB Dark Matter)
-const TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
-const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>';
+const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 // CSS injected once to override Leaflet popup defaults
 const POPUP_CSS = `
@@ -161,7 +161,7 @@ export function TattooFinderMap({ artists, city, className }: Props) {
       L.tileLayer(TILE_URL, {
         attribution: TILE_ATTR,
         maxZoom: 19,
-        subdomains: "abcd",
+        subdomains: "abc",
       }).addTo(map);
 
       for (const artist of withCoords) {
