@@ -10,8 +10,10 @@ import { z } from "zod";
 import {
   checkPreferredDates,
   emptyProAvailabilityContext,
+  getDurationMinutes,
   loadProAvailabilityContext,
   proposeAvailableSlots,
+  slotsForDay,
 } from "@/lib/pro/availability";
 import {
   buildProjectDescription,
@@ -127,6 +129,7 @@ Règles :
 - Respecte les horaires et créneaux retournés par les outils (ne invente pas de créneaux).
 - Quand le client choisit un créneau parmi les 3 proposés, retiens date + heure exacte au format HH:MM (ex: 10:00, 14:30).
 - Si le client dit « oui le 17 juin à 10h », enregistre slot_date=2026-06-17 et slot_time=10:00.
+- Si le client demande une heure précise différente des 3 créneaux proposés (ex: "à 16h", "vers 14h"), utilise get_day_slots avec la date choisie pour voir TOUS les créneaux disponibles ce jour-là, puis confirme si cette heure est dispo ou propose les alternatives les plus proches.
 - Si le client a envoyé une image dans le chat, repasse son URL dans reference_image_url lors de complete_booking_intake.
 - Quand tu as TOUT (style, zone, taille, color_preference, budget, créneau, nom, email, téléphone), appelle complete_booking_intake.
 - Après complete_booking_intake, écris uniquement : "Parfait ! Voici le récapitulatif de votre réservation ↓"
@@ -230,6 +233,33 @@ export async function POST(
               slots,
               size_category: sizeCategory,
               has_working_hours: ctx.schedules.length > 0,
+            };
+          }),
+      }),
+      get_day_slots: tool({
+        description:
+          "Retourne TOUS les créneaux disponibles pour une date précise. À utiliser quand le client demande une heure spécifique non proposée parmi les 3 créneaux initiaux.",
+        inputSchema: z.object({
+          date: z.string().describe("Date ISO YYYY-MM-DD"),
+          style: z.string(),
+          size: z.string(),
+        }),
+        execute: async ({ date, style, size }) =>
+          safeToolExecute("get_day_slots", async () => {
+            const sizeCategory = parseSizeCategory(size);
+            const ctx = await loadAvailabilitySafe(
+              proUserId,
+              rangeStart,
+              rangeEnd,
+            );
+            const dayDate = new Date(`${date}T12:00:00`);
+            const duration = getDurationMinutes(ctx, style, sizeCategory);
+            const allSlots = slotsForDay(dayDate, ctx, duration);
+            return {
+              date,
+              available_times: allSlots,
+              has_working_hours: ctx.schedules.length > 0,
+              total: allSlots.length,
             };
           }),
       }),
