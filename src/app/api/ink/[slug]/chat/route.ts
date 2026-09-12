@@ -20,7 +20,7 @@ import {
 } from "@/lib/pro/ink-booking";
 import { computeProDepositEur } from "@/lib/pro/compute-deposit";
 import { parseBudgetEuros } from "@/lib/pro/ink-booking";
-import { styleLabel } from "@/lib/pro/public-profile";
+import { fetchProStyleOptions } from "@/lib/pro/tattoo-style-catalog";
 import { fetchPublicProProfileBySlug } from "@/lib/pro/public-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { estimatePrice } from "@/lib/artists";
@@ -70,7 +70,7 @@ function uiMessagesHaveImages(messages: UIMessage[]): boolean {
 
 function buildInkSystemPrompt(
   artistName: string,
-  styles: string[],
+  styles: Array<{ slug: string; label: string }>,
   currentDateIso: string,
   hasReferenceImage: boolean,
 ): string {
@@ -82,7 +82,7 @@ function buildInkSystemPrompt(
     day: "numeric",
     timeZone: "Europe/Paris",
   });
-  const styleList = styles.map((s) => `- ${styleLabel(s)} (id: ${s})`).join("\n");
+  const styleList = styles.map((s) => `- ${s.label} (id: ${s.slug})`).join("\n");
   return `Tu es l'assistant de réservation Retvy pour le tatoueur ${artistName}.
 Tu guides le client en français, une seule question à la fois, ton bienveillant et concis.
 
@@ -97,15 +97,19 @@ Ordre strict des questions :
 ${styleList}
 2. Zone du corps
 3. Taille approximative (petit <10cm, moyen 10-25cm, grand 25cm+)
-4. Couleur — demande exactement : « Souhaitez-vous un tatouage en couleur, en noir et gris, ou vous n'avez pas encore décidé ? »
+4. Description du projet — demande : « Avez-vous une idée de ce que vous souhaitez représenter ? Même vague, ça m'aide à préparer le tatoueur. »
+   - Si le client décrit quelque chose (ex: "un chat dans un arbre") : enregistre-le tel quel dans reference_note.
+   - Si le client est hésitant ou dit "je ne suis pas sûr" : enregistre quand même sa description en ajoutant " (à confirmer lors des croquis)" dans reference_note.
+   - Si le client dit "non" ou "pas d'idée" : passe à la suite, reference_note sera null.
+5. Couleur — demande exactement : « Souhaitez-vous un tatouage en couleur, en noir et gris, ou vous n'avez pas encore décidé ? »
    Enregistre color_preference : "color" | "black_and_grey" | "undecided"
-5. Image de référence (optionnel — le client peut dire "non" ou "passer")
-6. Budget approximatif en euros
-7. Dates souhaitées (une ou plusieurs) — utilise l'outil check_preferred_dates
-8. Propose 3 créneaux via propose_available_slots (style + taille requis)
-9. Prénom et nom du client
-10. Email
-11. Téléphone
+6. Image de référence (optionnel — le client peut dire "non" ou "passer")
+7. Budget approximatif en euros
+8. Dates souhaitées (une ou plusieurs) — utilise l'outil check_preferred_dates
+9. Propose 3 créneaux via propose_available_slots (style + taille requis)
+10. Prénom et nom du client
+11. Email
+12. Téléphone
 
 ${hasReferenceImage ? `Photo de référence :
 - Le client a déjà uploadé une image de référence (visible dans le chat).
@@ -151,7 +155,12 @@ export async function POST(
       return new Response("messages requis", { status: 400 });
     }
 
-    const styles = profile.styles ?? [];
+    // Lire les styles depuis pro_styles + catalogue (nouveau système)
+    const admin = createAdminClient();
+    const proProfileId = profile.id ?? "";
+    const proStyleOptions = proProfileId
+      ? await fetchProStyleOptions(admin, proProfileId)
+      : [];
     const proUserId = profile.user_id;
     const rangeStart = new Date();
     const rangeEnd = new Date(rangeStart.getTime() + 60 * 24 * 60 * 60 * 1000);
@@ -334,7 +343,7 @@ export async function POST(
       model,
       system: buildInkSystemPrompt(
         profile.artist_name,
-        styles,
+        proStyleOptions,
         currentDateIso,
         hasReferenceImage,
       ),
