@@ -1,5 +1,12 @@
-import type { Database } from "@/lib/database.types";
 import { PRO_STYLE_OPTIONS } from "@/lib/pro/styles";
+import type { TattooStyleCatalog } from "@/lib/pro/tattoo-style-catalog";
+import {
+  fetchProPublicStyles,
+  fetchTattooStyleCatalogAdmin,
+  styleLabelFromCatalog,
+  type ProPublicStyles,
+} from "@/lib/pro/tattoo-style-catalog";
+import type { Database } from "@/lib/database.types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type PublicProProfile =
@@ -27,12 +34,20 @@ export type PortfolioStyleGroup = {
 
 /** Colonnes lues depuis pro_profiles (source de vérité, dont avatar_url). */
 const PUBLIC_PROFILE_COLUMNS =
-  "user_id, slug, artist_name, studio, styles, avatar_url, cover_url, bio, city, address, postal_code, price_min, price_max, status" as const;
+  "id, user_id, slug, artist_name, studio, avatar_url, cover_url, bio, city, address, postal_code, price_min, price_max, status, styles" as const;
 
-export function styleLabel(styleId: string): string {
-  return (
-    PRO_STYLE_OPTIONS.find((o) => o.id === styleId)?.label ?? styleId
-  );
+export function styleLabel(
+  styleId: string,
+  catalog?: TattooStyleCatalog | null,
+): string {
+  const fromCatalog = styleLabelFromCatalog(styleId, catalog);
+  if (fromCatalog) return fromCatalog;
+  const fromOptions = PRO_STYLE_OPTIONS.find((o) => o.id === styleId)?.label;
+  if (fromOptions) return fromOptions;
+  // Fallback: formater le slug catalogue ("japonais_traditionnel" → "Japonais traditionnel")
+  return styleId
+    .replace(/[_-]/g, " ")
+    .replace(/^\w/, (c) => c.toUpperCase());
 }
 
 /**
@@ -42,7 +57,7 @@ export function styleLabel(styleId: string): string {
  */
 export async function fetchPublicProProfileBySlug(
   slug: string,
-): Promise<PublicProProfile | null> {
+): Promise<(PublicProProfile & { id?: string }) | null> {
   const normalized = slug.trim().toLowerCase();
   if (!normalized) return null;
 
@@ -59,7 +74,7 @@ export async function fetchPublicProProfileBySlug(
   }
 
   if (row?.artist_name) {
-    return row as PublicProProfile;
+    return row as PublicProProfile & { id: string };
   }
 
   const { data: viaView, error: viewError } = await admin
@@ -77,11 +92,12 @@ export async function fetchPublicProProfileBySlug(
   if (viaView.user_id) {
     const { data: extra } = await admin
       .from("pro_profiles")
-      .select("address, postal_code, avatar_url")
+      .select("id, address, postal_code, avatar_url")
       .eq("user_id", viaView.user_id)
       .maybeSingle();
     return {
       ...viaView,
+      id: extra?.id,
       address: extra?.address ?? null,
       postal_code: extra?.postal_code ?? null,
       avatar_url: extra?.avatar_url ?? viaView.avatar_url,
@@ -116,7 +132,8 @@ export async function fetchPublicPortfolioByUserId(
 
 export function groupPortfolioByStyle(
   items: PublicPortfolioItem[],
-  profileStyles?: string[] | null,
+  profileStyleSlugs?: string[] | null,
+  catalog?: TattooStyleCatalog | null,
 ): PortfolioStyleGroup[] {
   const byStyle = new Map<string, PublicPortfolioItem[]>();
   for (const item of items) {
@@ -125,10 +142,10 @@ export function groupPortfolioByStyle(
     byStyle.set(item.style, list);
   }
 
-  const order = profileStyles?.length
+  const order = profileStyleSlugs?.length
     ? [
-        ...profileStyles.filter((s) => byStyle.has(s)),
-        ...[...byStyle.keys()].filter((s) => !profileStyles.includes(s)),
+        ...profileStyleSlugs.filter((s) => byStyle.has(s)),
+        ...[...byStyle.keys()].filter((s) => !profileStyleSlugs.includes(s)),
       ]
     : [...byStyle.keys()].sort();
 
@@ -136,7 +153,7 @@ export function groupPortfolioByStyle(
     .filter((style) => byStyle.has(style))
     .map((style) => ({
       style,
-      label: styleLabel(style),
+      label: styleLabel(style, catalog),
       images: byStyle.get(style)!,
     }));
 }
@@ -159,3 +176,21 @@ export async function fetchPublicStudioPhotosByUserId(
 
   return data ?? [];
 }
+
+export async function fetchProPublicStylesForProfile(
+  proProfileId: string,
+): Promise<ProPublicStyles> {
+  const admin = createAdminClient();
+  return fetchProPublicStyles(admin, proProfileId);
+}
+
+export async function loadInkPageStyleData(proProfileId?: string | null) {
+  const admin = createAdminClient();
+  const catalog = await fetchTattooStyleCatalogAdmin(admin);
+  const publicStyles = proProfileId
+    ? await fetchProPublicStyles(admin, proProfileId)
+    : { families: [], subStyles: [] };
+  return { catalog, publicStyles };
+}
+
+export type { ProPublicStyles };

@@ -395,7 +395,21 @@ export function InkBookingFlow({ slug, artistName }: Props) {
                         />
                       </div>
                     )}
-                  {text.trim() ? text : "Photo de référence"}
+                  {text.trim() ? (
+                    m.role === "assistant" ? (
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html: text
+                            .replace(/&/g, "&amp;")
+                            .replace(/</g, "&lt;")
+                            .replace(/>/g, "&gt;")
+                            .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+                            .replace(/\*(.+?)\*/g, "<em>$1</em>")
+                            .replace(/\n/g, "<br />"),
+                        }}
+                      />
+                    ) : text
+                  ) : "Photo de référence"}
                 </div>
               );
             })}
