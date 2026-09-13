@@ -37,7 +37,7 @@ export default async function ProDashboardAcomptePage({
 
   if (!profile) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-8 text-center">
+      <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950/80 p-8 text-center">
         <p className="text-zinc-400">Aucun profil pro trouvé.</p>
         <Link href="/pro/inscription" className="mt-4 inline-block">
           <Button>Commencer l&apos;inscription</Button>
@@ -48,12 +48,13 @@ export default async function ProDashboardAcomptePage({
 
   const { data: row } = await admin
     .from("pro_deposit_settings")
-    .select("deposit_type, cancellation_policy, rules")
+    .select("deposit_enabled, deposit_type, cancellation_policy, rules")
     .eq("user_id", user.id)
     .maybeSingle();
 
   const initial: DepositSettings = row
     ? {
+        deposit_enabled: row.deposit_enabled ?? true,
         deposit_type: row.deposit_type === "percent" ? "percent" : "fixed",
         cancellation_policy:
           row.cancellation_policy as DepositSettings["cancellation_policy"],
