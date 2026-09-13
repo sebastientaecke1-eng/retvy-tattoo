@@ -29,6 +29,8 @@ export type ProProfileRow = {
   longitude: number | null;
   created_at: string;
   updated_at: string;
+  is_sub_profile: boolean;
+  studio_owner_id: string | null;
 };
 
 export type ProProfileInsert = {
@@ -47,6 +49,8 @@ export type ProProfileInsert = {
   bio?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  is_sub_profile?: boolean;
+  studio_owner_id?: string | null;
 };
 
 export type ProProfileUpdate = Partial<ProProfileInsert> & {
@@ -127,6 +131,7 @@ export type DepositRuleJson = {
 
 export type ProDepositSettingsRow = {
   user_id: string;
+  deposit_enabled: boolean;
   deposit_type: DepositType;
   cancellation_policy: CancellationPolicy;
   rules: DepositRuleJson[];
@@ -165,6 +170,52 @@ export type SketchMessageRow = {
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled";
 
+export type BookingCancelledBy = "pro" | "client";
+
+export type BookingCancellationReason =
+  | "pro_unavailability"
+  | "client_request"
+  | "pro_manual";
+
+export type BookingClientAction = "pending" | "reschedule" | "declined";
+
+export type BookingRefundAttemptTrigger =
+  | "pro_block"
+  | "client_cancel"
+  | "admin_manual";
+
+export type BookingRefundAttemptStatus = "pending" | "succeeded" | "failed";
+
+export type BookingRefundStatus =
+  | "none"
+  | "pending"
+  | "succeeded"
+  | "failed"
+  | "not_applicable";
+
+export type StyleFamilyRow = {
+  id: string;
+  slug: string;
+  label: string;
+  display_order: number;
+  created_at: string;
+};
+
+export type StyleRow = {
+  id: string;
+  family_id: string;
+  slug: string;
+  label: string;
+  display_order: number;
+  created_at: string;
+};
+
+export type ProStyleRow = {
+  pro_id: string;
+  style_id: string;
+  created_at: string;
+};
+
 export type BookingRow = {
   id: string;
   user_id: string;
@@ -184,7 +235,39 @@ export type BookingRow = {
   deposit_paid: boolean;
   status: BookingStatus;
   cancellation_policy: CancellationPolicy;
+  stripe_checkout_session_id: string | null;
+  stripe_payment_intent_id: string | null;
+  stripe_charge_id: string | null;
+  stripe_connect_account_id: string | null;
+  refund_stripe_id: string | null;
+  refund_status: BookingRefundStatus;
+  refunded_at: string | null;
+  cancelled_by: BookingCancelledBy | null;
+  cancellation_reason: BookingCancellationReason | null;
+  client_action: BookingClientAction | null;
+  rescheduled_to_booking_id: string | null;
+  rescheduled_from_booking_id: string | null;
+  cancelled_at: string | null;
   created_at: string;
+  pro_profile_id: string | null;
+};
+
+export type BookingRefundAttemptRow = {
+  id: string;
+  booking_id: string;
+  trigger: BookingRefundAttemptTrigger;
+  amount_cents: number;
+  currency: string;
+  stripe_payment_intent_id: string | null;
+  stripe_charge_id: string | null;
+  stripe_connect_account_id: string | null;
+  stripe_refund_id: string | null;
+  status: BookingRefundAttemptStatus;
+  error_code: string | null;
+  error_message: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  completed_at: string | null;
 };
 
 export interface Database {
@@ -251,6 +334,7 @@ export interface Database {
         Row: ProDepositSettingsRow;
         Insert: {
           user_id: string;
+          deposit_enabled?: boolean;
           deposit_type?: DepositType;
           cancellation_policy?: CancellationPolicy;
           rules?: DepositRuleJson[];
@@ -258,6 +342,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: {
+          deposit_enabled?: boolean;
           deposit_type?: DepositType;
           cancellation_policy?: CancellationPolicy;
           rules?: DepositRuleJson[];
@@ -339,6 +424,19 @@ export interface Database {
           deposit_paid?: boolean;
           status?: BookingStatus;
           cancellation_policy?: CancellationPolicy;
+          stripe_checkout_session_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          stripe_charge_id?: string | null;
+          stripe_connect_account_id?: string | null;
+          refund_stripe_id?: string | null;
+          refund_status?: BookingRefundStatus;
+          refunded_at?: string | null;
+          cancelled_by?: BookingCancelledBy | null;
+          cancellation_reason?: BookingCancellationReason | null;
+          client_action?: BookingClientAction | null;
+          rescheduled_to_booking_id?: string | null;
+          rescheduled_from_booking_id?: string | null;
+          cancelled_at?: string | null;
           id?: string;
           created_at?: string;
         };
@@ -359,6 +457,48 @@ export interface Database {
           deposit_paid?: boolean;
           status?: BookingStatus;
           cancellation_policy?: CancellationPolicy;
+          stripe_checkout_session_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          stripe_charge_id?: string | null;
+          stripe_connect_account_id?: string | null;
+          refund_stripe_id?: string | null;
+          refund_status?: BookingRefundStatus;
+          refunded_at?: string | null;
+          cancelled_by?: BookingCancelledBy | null;
+          cancellation_reason?: BookingCancellationReason | null;
+          client_action?: BookingClientAction | null;
+          rescheduled_to_booking_id?: string | null;
+          rescheduled_from_booking_id?: string | null;
+          cancelled_at?: string | null;
+        };
+        Relationships: [];
+      };
+      booking_refund_attempts: {
+        Row: BookingRefundAttemptRow;
+        Insert: {
+          booking_id: string;
+          trigger: BookingRefundAttemptTrigger;
+          amount_cents: number;
+          currency?: string;
+          stripe_payment_intent_id?: string | null;
+          stripe_charge_id?: string | null;
+          stripe_connect_account_id?: string | null;
+          stripe_refund_id?: string | null;
+          status: BookingRefundAttemptStatus;
+          error_code?: string | null;
+          error_message?: string | null;
+          metadata?: Record<string, unknown>;
+          id?: string;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          stripe_refund_id?: string | null;
+          status?: BookingRefundAttemptStatus;
+          error_code?: string | null;
+          error_message?: string | null;
+          metadata?: Record<string, unknown>;
+          completed_at?: string | null;
         };
         Relationships: [];
       };
@@ -401,6 +541,52 @@ export interface Database {
         Update: {
           message?: string | null;
           image_url?: string | null;
+        };
+        Relationships: [];
+      };
+      style_families: {
+        Row: StyleFamilyRow;
+        Insert: {
+          slug: string;
+          label: string;
+          display_order?: number;
+          id?: string;
+          created_at?: string;
+        };
+        Update: {
+          slug?: string;
+          label?: string;
+          display_order?: number;
+        };
+        Relationships: [];
+      };
+      styles: {
+        Row: StyleRow;
+        Insert: {
+          family_id: string;
+          slug: string;
+          label: string;
+          display_order?: number;
+          id?: string;
+          created_at?: string;
+        };
+        Update: {
+          family_id?: string;
+          slug?: string;
+          label?: string;
+          display_order?: number;
+        };
+        Relationships: [];
+      };
+      pro_styles: {
+        Row: ProStyleRow;
+        Insert: {
+          pro_id: string;
+          style_id: string;
+          created_at?: string;
+        };
+        Update: {
+          style_id?: string;
         };
         Relationships: [];
       };
