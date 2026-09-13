@@ -11,6 +11,7 @@ export type DepositRule = {
 };
 
 export type DepositSettings = {
+  deposit_enabled: boolean;
   deposit_type: DepositType;
   cancellation_policy: CancellationPolicy;
   rules: DepositRule[];
@@ -39,6 +40,7 @@ export function defaultDepositValueForTier(
 }
 
 export const DEFAULT_DEPOSIT_SETTINGS: DepositSettings = {
+  deposit_enabled: true,
   deposit_type: "fixed",
   cancellation_policy: "48h",
   rules: DEFAULT_DEPOSIT_RULES,

@@ -507,6 +507,7 @@ export function InkBookingFlow({ slug, artistName }: Props) {
                 />
               </div>
             )}
+            {intake.deposit_amount > 0 && (
             <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3">
               <p className="text-xs uppercase tracking-widest text-blue-500/80">
                 Acompte à régler
@@ -515,6 +516,7 @@ export function InkBookingFlow({ slug, artistName }: Props) {
                 {intake.deposit_amount} €
               </p>
             </div>
+            )}
             {!intake.slot_available && (
               <p className="text-sm text-blue-300">
                 Attention : le créneau choisi pourrait ne plus être disponible. Le
@@ -533,6 +535,7 @@ export function InkBookingFlow({ slug, artistName }: Props) {
             )}
             {!deferSuccess && (
               <div className="flex flex-col gap-3 sm:flex-row">
+                {intake.deposit_amount > 0 && (
                 <Button
                   size="lg"
                   className="w-full sm:flex-1"
@@ -548,6 +551,7 @@ export function InkBookingFlow({ slug, artistName }: Props) {
                     `Payer l'acompte — ${intake.deposit_amount} €`
                   )}
                 </Button>
+                )}
                 <Button
                   size="lg"
                   variant="outline"

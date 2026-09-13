@@ -8,6 +8,7 @@ const depositRuleSchema = z.object({
 
 export const depositSettingsPutSchema = z
   .object({
+    deposit_enabled: z.boolean().default(true),
     deposit_type: z.enum(["fixed", "percent"]),
     cancellation_policy: z.enum(["24h", "48h", "72h", "non_refundable"]),
     rules: z.array(depositRuleSchema).min(1).max(20),

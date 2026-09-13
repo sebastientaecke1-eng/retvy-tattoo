@@ -10,11 +10,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
 
 function rowToSettings(row: {
+  deposit_enabled?: boolean | null;
   deposit_type: string;
   cancellation_policy: string;
   rules: unknown;
 }): DepositSettings {
   return {
+    deposit_enabled: row.deposit_enabled ?? true,
     deposit_type:
       row.deposit_type === "percent" ? "percent" : "fixed",
     cancellation_policy: row.cancellation_policy as DepositSettings["cancellation_policy"],
@@ -31,7 +33,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("pro_deposit_settings")
-    .select("deposit_type, cancellation_policy, rules")
+    .select("deposit_enabled, deposit_type, cancellation_policy, rules")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -67,6 +69,7 @@ export async function PUT(request: Request) {
     .upsert(
       {
         user_id: user.id,
+        deposit_enabled: body.deposit_enabled,
         deposit_type: body.deposit_type,
         cancellation_policy: body.cancellation_policy,
         rules: body.rules,
@@ -74,7 +77,7 @@ export async function PUT(request: Request) {
       },
       { onConflict: "user_id" },
     )
-    .select("deposit_type, cancellation_policy, rules")
+    .select("deposit_enabled, deposit_type, cancellation_policy, rules")
     .single();
 
   if (error) {

@@ -20,8 +20,9 @@ function normalizeBudgetEur(value: number | string | unknown): number {
  */
 export function computeDepositFromSettings(
   budgetEur: number | string | unknown,
-  settings: Pick<DepositSettings, "deposit_type" | "rules"> = DEFAULT_DEPOSIT_SETTINGS,
+  settings: Pick<DepositSettings, "deposit_enabled" | "deposit_type" | "rules"> = DEFAULT_DEPOSIT_SETTINGS,
 ): number {
+  if (settings.deposit_enabled === false) return 0;
   const ref = normalizeBudgetEur(budgetEur);
   const rules = [...settings.rules].sort((a, b) => a.price_min - b.price_min);
   const match = rules.find(
@@ -58,12 +59,13 @@ export async function computeProDepositEur(
 ): Promise<number> {
   const { data: depositRow } = await admin
     .from("pro_deposit_settings")
-    .select("deposit_type, rules")
+    .select("deposit_enabled, deposit_type, rules")
     .eq("user_id", proUserId)
     .maybeSingle();
 
   const depositSettings = depositRow
     ? {
+        deposit_enabled: depositRow.deposit_enabled ?? true,
         deposit_type: depositRow.deposit_type,
         rules: parseRulesFromDb(depositRow.rules),
       }

@@ -25,6 +25,7 @@ type Props = {
 };
 
 export function DepositSettingsForm({ initial }: Props) {
+  const [depositEnabled, setDepositEnabled] = useState<boolean>(initial.deposit_enabled ?? true);
   const [depositType, setDepositType] = useState<DepositType>(initial.deposit_type);
   const [cancellation, setCancellation] = useState<CancellationPolicy>(
     initial.cancellation_policy,
@@ -92,6 +93,7 @@ export function DepositSettingsForm({ initial }: Props) {
     setSaved(false);
 
     const payload = {
+      deposit_enabled: depositEnabled,
       deposit_type: depositType,
       cancellation_policy: cancellation,
       rules: rules.map(({ price_min, price_max, deposit_value }) => ({
@@ -122,7 +124,7 @@ export function DepositSettingsForm({ initial }: Props) {
   return (
     <form onSubmit={handleSave} className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-zinc-50">Acomptes</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Acomptes</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Montants demandés à la réservation et politique d&apos;annulation.
         </p>
@@ -144,7 +146,38 @@ export function DepositSettingsForm({ initial }: Props) {
         </p>
       )}
 
-      <Card className="border-zinc-800 bg-zinc-950/80">
+      {/* Toggle acomptes activés */}
+      <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <div>
+          <p className="font-semibold text-zinc-900 dark:text-zinc-50">Activer les acomptes</p>
+          <p className="mt-0.5 text-sm text-zinc-500">
+            {depositEnabled
+              ? "Les clients devront régler un acompte lors de la réservation."
+              : "Aucun acompte ne sera demandé aux clients."}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={depositEnabled}
+          onClick={() => setDepositEnabled((v) => !v)}
+          className={[
+            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+            depositEnabled ? "bg-blue-500" : "bg-zinc-300 dark:bg-zinc-700",
+          ].join(" ")}
+        >
+          <span
+            className={[
+              "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform duration-200",
+              depositEnabled ? "translate-x-5" : "translate-x-0",
+            ].join(" ")}
+          />
+        </button>
+      </div>
+
+      <div className={depositEnabled ? "" : "pointer-events-none opacity-40"}>
+      <div className="space-y-8">
+      <Card>
         <CardHeader>
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Type d&apos;acompte
@@ -157,9 +190,9 @@ export function DepositSettingsForm({ initial }: Props) {
               name="deposit_type"
               checked={depositType === "fixed"}
               onChange={() => changeDepositType("fixed")}
-              className="h-4 w-4 border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500/30"
+              className="h-4 w-4 border-zinc-300 bg-white text-blue-500 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-900"
             />
-            <span className="text-zinc-200">Montant fixe (€)</span>
+            <span className="text-zinc-800 dark:text-zinc-200">Montant fixe (€)</span>
           </label>
           <label className="flex cursor-pointer items-center gap-3">
             <input
@@ -167,14 +200,14 @@ export function DepositSettingsForm({ initial }: Props) {
               name="deposit_type"
               checked={depositType === "percent"}
               onChange={() => changeDepositType("percent")}
-              className="h-4 w-4 border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500/30"
+              className="h-4 w-4 border-zinc-300 bg-white text-blue-500 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-900"
             />
-            <span className="text-zinc-200">Pourcentage (%)</span>
+            <span className="text-zinc-800 dark:text-zinc-200">Pourcentage (%)</span>
           </label>
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-800 bg-zinc-950/80">
+      <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
@@ -192,7 +225,7 @@ export function DepositSettingsForm({ initial }: Props) {
         <CardContent className="overflow-x-auto pt-0">
           <table className="w-full min-w-[520px] text-left text-sm">
             <thead>
-              <tr className="border-b border-zinc-800 text-zinc-500">
+              <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
                 <th className="pb-3 pr-4 font-medium">Min (€)</th>
                 <th className="pb-3 pr-4 font-medium">Max (€)</th>
                 <th className="pb-3 pr-4 font-medium">{valueLabel}</th>
@@ -201,7 +234,7 @@ export function DepositSettingsForm({ initial }: Props) {
             </thead>
             <tbody>
               {rules.map((rule) => (
-                <tr key={rule.key} className="border-b border-zinc-800/60">
+                <tr key={rule.key} className="border-b border-zinc-200/80 dark:border-zinc-800/60">
                   <td className="py-3 pr-4">
                     <Input
                       type="number"
@@ -275,7 +308,7 @@ export function DepositSettingsForm({ initial }: Props) {
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-800 bg-zinc-950/80">
+      <Card>
         <CardHeader>
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Politique d&apos;annulation
@@ -285,20 +318,23 @@ export function DepositSettingsForm({ initial }: Props) {
           {CANCELLATION_OPTIONS.map((opt) => (
             <label
               key={opt.id}
-              className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-800/80 px-4 py-3 hover:border-zinc-700"
+              className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 px-4 py-3 hover:border-zinc-300 dark:border-zinc-800/80 dark:hover:border-zinc-700"
             >
               <input
                 type="radio"
                 name="cancellation"
                 checked={cancellation === opt.id}
                 onChange={() => setCancellation(opt.id)}
-                className="mt-0.5 h-4 w-4 border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500/30"
+                className="mt-0.5 h-4 w-4 border-zinc-300 bg-white text-blue-500 focus:ring-blue-500/30 dark:border-zinc-600 dark:bg-zinc-900"
               />
-              <span className="text-sm text-zinc-300">{opt.label}</span>
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">{opt.label}</span>
             </label>
           ))}
         </CardContent>
       </Card>
+
+      </div>
+      </div>
 
       <div className="flex justify-end pb-8">
         <Button type="submit" size="lg" disabled={saving}>
