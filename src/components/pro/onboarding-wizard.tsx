@@ -211,12 +211,8 @@ export function OnboardingWizard() {
 
     if (draft) {
       goToStep(draft.step);
-    } else if (stepParam != null) {
-      const n = Number.parseInt(stepParam, 10);
-      if (Number.isFinite(n) && n >= 0 && n <= MAX_STEP) {
-        goToStep(n);
-      }
     }
+    // Sans brouillon, on ignore ?step= et on commence toujours à l'étape 0
 
     setDraftPersistReady(true);
     void prefillAccountFieldsFromAuth();
