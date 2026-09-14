@@ -330,12 +330,14 @@ export interface Database {
         Row: ProBlockedDateRow;
         Insert: {
           user_id: string;
+          profile_id?: string | null;
           blocked_date: string;
           reason?: string | null;
           id?: string;
           created_at?: string;
         };
         Update: {
+          profile_id?: string | null;
           blocked_date?: string;
           reason?: string | null;
         };
@@ -345,6 +347,7 @@ export interface Database {
         Row: ProDepositSettingsRow;
         Insert: {
           user_id: string;
+          profile_id?: string | null;
           deposit_enabled?: boolean;
           deposit_type?: DepositType;
           cancellation_policy?: CancellationPolicy;
@@ -353,6 +356,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: {
+          profile_id?: string | null;
           deposit_enabled?: boolean;
           deposit_type?: DepositType;
           cancellation_policy?: CancellationPolicy;
@@ -365,6 +369,7 @@ export interface Database {
         Row: ProStyleDurationRow;
         Insert: {
           user_id: string;
+          profile_id?: string | null;
           style: string;
           duration_minutes: number;
           size_category?: SizeCategory;
@@ -401,6 +406,7 @@ export interface Database {
         Row: ProPortfolioRow;
         Insert: {
           user_id: string;
+          profile_id?: string | null;
           style: string;
           image_url: string;
           storage_path?: string | null;
@@ -615,6 +621,7 @@ export interface Database {
         Row: ProPricingSettingsRow;
         Insert: {
           user_id: string;
+          profile_id?: string | null;
           size_small_min?: number;
           size_small_max?: number;
           size_medium_min?: number;
@@ -629,6 +636,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: {
+          profile_id?: string | null;
           size_small_min?: number;
           size_small_max?: number;
           size_medium_min?: number;
