@@ -6,6 +6,7 @@ import {
 } from "@/lib/brevo-booking";
 import { combineBookingDateTime } from "@/lib/pro/ink-booking";
 import type { CancellationPolicy } from "@/lib/pro/deposit-settings";
+import type { BookingPaymentRefs } from "@/lib/stripe/booking-payment-refs";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type BookingMetadata = {
@@ -31,6 +32,7 @@ export type BookingMetadata = {
   cancellation_policy?: string;
   reference_image_url?: string;
   color_preference?: string;
+  stripe_payment?: BookingPaymentRefs;
 };
 
 async function resolveProEmail(
@@ -96,6 +98,21 @@ export async function buildBookingEmailPayload(
   return { bookingPayload, proEmail };
 }
 
+function stripePaymentPayload(
+  meta: BookingMetadata,
+  depositPaid: boolean,
+): Record<string, string | null> {
+  if (!depositPaid || !meta.stripe_payment) return {};
+
+  return {
+    stripe_checkout_session_id: meta.stripe_payment.stripe_checkout_session_id,
+    stripe_payment_intent_id: meta.stripe_payment.stripe_payment_intent_id,
+    stripe_charge_id: meta.stripe_payment.stripe_charge_id,
+    stripe_connect_account_id: meta.stripe_payment.stripe_connect_account_id,
+    refund_status: "none",
+  };
+}
+
 export async function insertBookingFromMetadata(
   meta: BookingMetadata,
   opts: { depositPaid: boolean; status: "confirmed" | "pending" },
@@ -105,6 +122,7 @@ export async function insertBookingFromMetadata(
   const bookingDate = combineBookingDateTime(meta.slot_date, meta.slot_time);
 
   const updatePayload = {
+    artist_slug: meta.artist_slug ?? null,
     deposit_paid: opts.depositPaid,
     status: opts.status,
     deposit_amount: depositEur,
@@ -123,6 +141,7 @@ export async function insertBookingFromMetadata(
     ...(meta.client_user_id
       ? { client_id: meta.client_user_id }
       : {}),
+    ...stripePaymentPayload(meta, opts.depositPaid),
   };
 
   if (meta.booking_id) {
@@ -155,6 +174,11 @@ export async function insertBookingFromMetadata(
 
   const { error } = await admin.from("bookings").insert({
     user_id: meta.pro_user_id,
+    artist_slug: meta.artist_slug ?? null,
+    artist_name: meta.artist_name ?? null,
+    artist_studio: meta.artist_studio ?? null,
+    slot_date: meta.slot_date,
+    slot_time: meta.slot_time,
     client_id: meta.client_user_id || null,
     client_name: meta.client_name ?? "Client",
     client_email: meta.client_email?.trim().toLowerCase() ?? null,
@@ -172,6 +196,7 @@ export async function insertBookingFromMetadata(
     status: opts.status,
     cancellation_policy:
       (meta.cancellation_policy as CancellationPolicy) ?? "48h",
+    refund_status: opts.depositPaid ? "none" : "not_applicable",
   });
 
   if (error) {

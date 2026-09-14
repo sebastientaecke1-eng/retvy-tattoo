@@ -230,6 +230,8 @@ export type BookingRow = {
   reference_image_url: string | null;
   color_preference: string | null;
   booking_date: string;
+  slot_date: string;
+  slot_time: string;
   duration_minutes: number;
   deposit_amount: number;
   deposit_paid: boolean;
@@ -250,6 +252,9 @@ export type BookingRow = {
   cancelled_at: string | null;
   created_at: string;
   pro_profile_id: string | null;
+  artist_slug: string | null;
+  artist_name: string | null;
+  artist_studio: string | null;
 };
 
 export type BookingRefundAttemptRow = {
@@ -410,7 +415,12 @@ export interface Database {
           user_id: string;
           client_name: string;
           booking_date: string;
+          slot_date: string;
+          slot_time: string;
           client_id?: string | null;
+          artist_slug?: string | null;
+          artist_name?: string | null;
+          artist_studio?: string | null;
           client_email?: string | null;
           client_phone?: string | null;
           project_description?: string | null;
@@ -443,6 +453,9 @@ export interface Database {
         Update: {
           client_name?: string;
           client_id?: string | null;
+          artist_slug?: string | null;
+          artist_name?: string | null;
+          artist_studio?: string | null;
           client_email?: string | null;
           client_phone?: string | null;
           project_description?: string | null;
@@ -452,6 +465,8 @@ export interface Database {
           reference_image_url?: string | null;
           color_preference?: string | null;
           booking_date?: string;
+          slot_date?: string;
+          slot_time?: string;
           duration_minutes?: number;
           deposit_amount?: number;
           deposit_paid?: boolean;
@@ -590,6 +605,38 @@ export interface Database {
         };
         Relationships: [];
       };
+      pro_pricing_settings: {
+        Row: ProPricingSettingsRow;
+        Insert: {
+          user_id: string;
+          size_small_min?: number;
+          size_small_max?: number;
+          size_medium_min?: number;
+          size_medium_max?: number;
+          size_large_min?: number;
+          size_large_max?: number;
+          color_enabled?: boolean;
+          color_type?: "pct" | "fixed";
+          color_amount?: number;
+          style_multipliers?: Record<string, number>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          size_small_min?: number;
+          size_small_max?: number;
+          size_medium_min?: number;
+          size_medium_max?: number;
+          size_large_min?: number;
+          size_large_max?: number;
+          color_enabled?: boolean;
+          color_type?: "pct" | "fixed";
+          color_amount?: number;
+          style_multipliers?: Record<string, number>;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       stripe_events: {
         Row: {
           id: string;
@@ -637,3 +684,20 @@ export interface Database {
     };
   };
 }
+
+// ── Finance / Pricing ──────────────────────────────────────────────────────
+export type ProPricingSettingsRow = {
+  user_id: string;
+  size_small_min: number;
+  size_small_max: number;
+  size_medium_min: number;
+  size_medium_max: number;
+  size_large_min: number;
+  size_large_max: number;
+  color_enabled: boolean;
+  color_type: "pct" | "fixed";
+  color_amount: number;
+  style_multipliers: Record<string, number>;
+  created_at: string;
+  updated_at: string;
+};
