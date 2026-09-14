@@ -1,10 +1,22 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import { fulfillDepositFromCheckoutSession } from "@/lib/stripe/deposit-checkout";
+import { constructStripeWebhookEvent } from "@/lib/stripe/webhook-verify";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fulfillDepositBooking } from "@/lib/pro/persist-booking";
-import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
+
+function priceIdToTier(priceId: string): "1" | "23" | "3plus" | null {
+  const env = process.env;
+  const priceMap: Record<string, "1" | "23" | "3plus"> = {};
+  if (env.STRIPE_PRICE_1_MONTHLY)     priceMap[env.STRIPE_PRICE_1_MONTHLY.trim()]      = "1";
+  if (env.STRIPE_PRICE_1_ANNUAL)      priceMap[env.STRIPE_PRICE_1_ANNUAL.trim()]       = "1";
+  if (env.STRIPE_PRICE_23_MONTHLY)    priceMap[env.STRIPE_PRICE_23_MONTHLY.trim()]     = "23";
+  if (env.STRIPE_PRICE_23_ANNUAL)     priceMap[env.STRIPE_PRICE_23_ANNUAL.trim()]      = "23";
+  if (env.STRIPE_PRICE_3PLUS_MONTHLY) priceMap[env.STRIPE_PRICE_3PLUS_MONTHLY.trim()]  = "3plus";
+  if (env.STRIPE_PRICE_3PLUS_ANNUAL)  priceMap[env.STRIPE_PRICE_3PLUS_ANNUAL.trim()]   = "3plus";
+  return priceMap[priceId] ?? null;
+}
 
 async function syncSubscription(sub: Stripe.Subscription) {
   const admin = createAdminClient();
@@ -24,7 +36,11 @@ async function syncSubscription(sub: Stripe.Subscription) {
             ? "canceled"
             : "pending";
 
-  const payload = {
+  // Détecter le tier depuis le price ID de l'abonnement
+  const priceId = sub.items?.data?.[0]?.price?.id ?? "";
+  const tier = priceIdToTier(priceId);
+
+  const payload: Record<string, unknown> = {
     status: nextStatus,
     subscription_status: nextStatus,
     trial_ends_at: trialEndsAt,
@@ -32,6 +48,10 @@ async function syncSubscription(sub: Stripe.Subscription) {
     stripe_customer_id:
       typeof sub.customer === "string" ? sub.customer : sub.customer.id,
   };
+
+  if (tier) {
+    payload.subscription_tier = tier;
+  }
 
   const query = admin.from("pro_profiles").update(payload);
   if (userId) {
@@ -42,10 +62,14 @@ async function syncSubscription(sub: Stripe.Subscription) {
 }
 
 export async function POST(request: Request) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!secret) {
+  const hasPlatformSecret = Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim());
+  const hasConnectSecret = Boolean(
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET?.trim(),
+  );
+
+  if (!hasPlatformSecret && !hasConnectSecret) {
     return NextResponse.json(
-      { error: "STRIPE_WEBHOOK_SECRET non configurée" },
+      { error: "Secret webhook Stripe non configuré" },
       { status: 503 },
     );
   }
@@ -56,16 +80,16 @@ export async function POST(request: Request) {
   }
 
   const rawBody = await request.text();
-  const stripe = getStripe();
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, secret);
+    event = constructStripeWebhookEvent(rawBody, signature);
   } catch (err) {
     console.error("[stripe/webhook] signature", err);
     return NextResponse.json({ error: "Signature invalide" }, { status: 400 });
   }
 
+  const connectAccountId = event.account ?? null;
   const admin = createAdminClient();
 
   const { error: idemErr } = await admin.from("stripe_events").insert({
@@ -78,43 +102,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ duplicate: true });
   }
 
+  if (idemErr) {
+    console.error("[stripe/webhook] stripe_events insert", idemErr);
+  }
+
   try {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const meta = session.metadata ?? {};
 
-        if (session.mode === "payment" && meta.kind === "deposit") {
-          if (meta.pro_user_id && meta.slot_date && meta.slot_time) {
-            await fulfillDepositBooking({
-              booking_id: meta.booking_id || undefined,
-              pro_user_id: meta.pro_user_id,
-              artist_slug: meta.artist_slug,
-              artist_name: meta.artist_name,
-              artist_studio: meta.artist_studio,
-              slot_date: meta.slot_date,
-              slot_time: meta.slot_time,
-              project_summary: meta.project_summary,
-              style: meta.style,
-              zone: meta.zone,
-              size: meta.size,
-              duration_minutes: meta.duration_minutes,
-              deposit_eur: meta.deposit_eur,
-              client_user_id: meta.client_user_id,
-              client_email: meta.client_email,
-              client_name: meta.client_name,
-              client_phone: meta.client_phone,
-              reference:
-                meta.reference || session.id.slice(-8).toUpperCase(),
-              cancellation_policy: meta.cancellation_policy,
-              reference_image_url: meta.reference_image_url,
-            }).catch((err) =>
-              console.error("[stripe/webhook] deposit fulfill", err),
-            );
-          }
+        if (session.mode === "payment" && session.metadata?.kind === "deposit") {
+          await fulfillDepositFromCheckoutSession(session, {
+            connectAccountId,
+            logPrefix: "[stripe/webhook]",
+          }).catch((err) =>
+            console.error("[stripe/webhook] deposit fulfill", err),
+          );
         }
 
-        if (session.mode === "subscription") {
+        if (!connectAccountId && session.mode === "subscription") {
           const subId =
             typeof session.subscription === "string"
               ? session.subscription
@@ -140,14 +146,18 @@ export async function POST(request: Request) {
       }
       case "customer.subscription.created":
       case "customer.subscription.updated":
-        await syncSubscription(event.data.object as Stripe.Subscription);
+        if (!connectAccountId) {
+          await syncSubscription(event.data.object as Stripe.Subscription);
+        }
         break;
       case "customer.subscription.deleted": {
-        const sub = event.data.object as Stripe.Subscription;
-        await admin
-          .from("pro_profiles")
-          .update({ status: "canceled", subscription_status: "canceled" })
-          .eq("stripe_subscription_id", sub.id);
+        if (!connectAccountId) {
+          const sub = event.data.object as Stripe.Subscription;
+          await admin
+            .from("pro_profiles")
+            .update({ status: "canceled", subscription_status: "canceled" })
+            .eq("stripe_subscription_id", sub.id);
+        }
         break;
       }
       case "account.updated": {
@@ -169,10 +179,14 @@ export async function POST(request: Request) {
         break;
     }
 
-    await admin
+    const { error: processedErr } = await admin
       .from("stripe_events")
       .update({ processed_at: new Date().toISOString() })
       .eq("id", event.id);
+
+    if (processedErr) {
+      console.error("[stripe/webhook] stripe_events processed_at", processedErr);
+    }
   } catch (err) {
     console.error("[stripe/webhook]", event.type, err);
     return NextResponse.json({ error: "Handler error" }, { status: 500 });

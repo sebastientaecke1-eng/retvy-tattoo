@@ -22,6 +22,7 @@ export type ProProfileRow = {
   stripe_connect_account_id: string | null;
   stripe_account_id: string | null;
   subscription_status: string | null;
+  subscription_tier: "1" | "23" | "3plus" | null;
   trial_ends_at: string | null;
   price_min: number | null;
   price_max: number | null;
@@ -67,6 +68,7 @@ export type ProProfileUpdate = Partial<ProProfileInsert> & {
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
   subscription_status?: string | null;
+  subscription_tier?: "1" | "23" | "3plus" | null;
   trial_ends_at?: string | null;
   status?: string;
 };

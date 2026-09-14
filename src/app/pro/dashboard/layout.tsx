@@ -43,13 +43,12 @@ export default async function ProDashboardLayout({
   // Tier du plan
   const { data: subData } = await admin
     .from("pro_profiles")
-    .select("subscription_status, is_sub_profile, status")
+    .select("subscription_status, subscription_tier, is_sub_profile, status")
     .eq("user_id", user.id)
     .eq("is_sub_profile", false)
     .maybeSingle();
 
-  const raw = subData?.subscription_status ?? "";
-  const tier: PlanTier = raw.includes("3plus") ? "3plus" : raw.includes("23") ? "23" : "1";
+  const tier: PlanTier = (subData?.subscription_tier as PlanTier | null | undefined) ?? "1";
   const isStudio = tier !== "1";
   const subscriptionStatus = subData?.status ?? "active";
 
