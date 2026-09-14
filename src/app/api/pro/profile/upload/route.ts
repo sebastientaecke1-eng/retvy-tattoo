@@ -4,6 +4,7 @@ import { isProPortfolioStyleSlug } from "@/lib/pro/tattoo-style-catalog";
 import { MAX_STUDIO_PHOTOS } from "@/lib/pro/studio";
 import { storagePublicUrl } from "@/lib/pro/storage-public-url";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
+import { resolveActiveProfile } from "@/lib/pro/active-profile";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = new Set([
@@ -153,16 +154,20 @@ export async function POST(request: Request) {
   }
 
   const imageUrl = storagePublicUrl("portfolio", path);
+  const uploadActiveProfile = await resolveActiveProfile(admin, user.id);
+  const uploadProfileId = uploadActiveProfile?.id ?? null;
+
   const { count } = await admin
     .from("pro_portfolio")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
+    .eq("profile_id", uploadProfileId ?? "")
     .eq("style", style);
 
   const { data: row, error: insErr } = await admin
     .from("pro_portfolio")
     .insert({
       user_id: user.id,
+      profile_id: uploadProfileId,
       style,
       image_url: imageUrl,
       storage_path: path,

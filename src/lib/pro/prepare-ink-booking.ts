@@ -49,6 +49,7 @@ export async function prepareInkBooking(
     profile.user_id,
     rangeStart,
     rangeEnd,
+    profile.id,
   );
 
   const candidateSlots = proposeAvailableSlots({
@@ -104,11 +105,20 @@ export async function prepareInkBooking(
     (depositRow?.cancellation_policy as PreparedInkBooking["cancellationPolicy"]) ??
     "48h";
 
-  const { data: proRow } = await admin
+  const { data: proRow, error: proRowError } = await admin
     .from("pro_profiles")
-    .select("stripe_account_id, stripe_connect_account_id, studio")
+    .select("stripe_account_id, studio")
     .eq("user_id", profile.user_id)
     .maybeSingle();
+
+  if (proRowError) {
+    console.error("[prepare-ink-booking] pro_profiles", proRowError.message);
+    return {
+      ok: false,
+      status: 500,
+      error: `Erreur technique lors du chargement du profil pro : ${proRowError.message}`,
+    };
+  }
 
   return {
     ok: true,
@@ -121,8 +131,7 @@ export async function prepareInkBooking(
       depositEur,
       reference,
       cancellationPolicy,
-      stripeConnectAccountId:
-        proRow?.stripe_account_id ?? proRow?.stripe_connect_account_id ?? null,
+      stripeConnectAccountId: proRow?.stripe_account_id ?? null,
     },
   };
 }

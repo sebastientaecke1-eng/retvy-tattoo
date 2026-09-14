@@ -83,6 +83,7 @@ export async function loadProAvailabilityContext(
   proUserId: string,
   rangeStart: Date,
   rangeEnd: Date,
+  profileId?: string | null,
 ): Promise<ProAvailabilityContext> {
   let admin;
   try {
@@ -101,16 +102,28 @@ export async function loadProAvailabilityContext(
         .from("pro_schedules")
         .select("day_of_week, start_time, end_time")
         .eq("user_id", proUserId),
-      admin
-        .from("pro_blocked_dates")
-        .select("blocked_date")
-        .eq("user_id", proUserId),
-      admin
-        .from("pro_style_durations")
-        .select(
-          "style, size_category, duration_min_minutes, duration_max_minutes, duration_minutes",
-        )
-        .eq("user_id", proUserId),
+      profileId
+        ? admin
+            .from("pro_blocked_dates")
+            .select("blocked_date")
+            .eq("profile_id", profileId)
+        : admin
+            .from("pro_blocked_dates")
+            .select("blocked_date")
+            .eq("user_id", proUserId),
+      profileId
+        ? admin
+            .from("pro_style_durations")
+            .select(
+              "style, size_category, duration_min_minutes, duration_max_minutes, duration_minutes",
+            )
+            .eq("profile_id", profileId)
+        : admin
+            .from("pro_style_durations")
+            .select(
+              "style, size_category, duration_min_minutes, duration_max_minutes, duration_minutes",
+            )
+            .eq("user_id", proUserId),
       admin
         .from("bookings")
         .select("booking_date, duration_minutes, status")
@@ -258,6 +271,8 @@ export function proposeAvailableSlots(opts: {
   count?: number;
   from?: Date;
   daysAhead?: number;
+  /** "morning" = avant 12h, "afternoon" = 12h et après, undefined = pas de filtre */
+  timePreference?: "morning" | "afternoon";
 }): AvailableSlot[] {
   const count = opts.count ?? 3;
   const from = opts.from ?? new Date();
@@ -268,6 +283,21 @@ export function proposeAvailableSlots(opts: {
     return [];
   }
 
+  /**
+   * Filtre les créneaux selon la préférence horaire.
+   * Si le filtre ne retourne rien sur un jour, on garde tous les créneaux
+   * pour proposer le plus tôt disponible (plutôt que de rester bloqué).
+   */
+  function filterByTimePreference(times: string[]): string[] {
+    if (!opts.timePreference) return times;
+    const filtered = times.filter((t) => {
+      const hour = parseInt(t.slice(0, 2), 10);
+      return opts.timePreference === "morning" ? hour < 12 : hour >= 12;
+    });
+    // Fallback : si aucun créneau dans la plage préférée, renvoie le premier dispo
+    return filtered.length > 0 ? filtered : times.slice(0, 1);
+  }
+
   const preferred = new Set(
     (opts.preferredDates ?? []).filter((iso) => isValidIsoDate(iso)),
   );
@@ -276,7 +306,8 @@ export function proposeAvailableSlots(opts: {
   const tryDate = (date: Date) => {
     if (Number.isNaN(date.getTime())) return false;
     const iso = formatIsoDateLocal(date);
-    const times = slotsForDay(date, opts.ctx, duration);
+    const allTimes = slotsForDay(date, opts.ctx, duration);
+    const times = filterByTimePreference(allTimes);
     for (const time of times) {
       results.push({ date: iso, time, duration_minutes: duration });
       if (results.length >= count) return true;

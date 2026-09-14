@@ -31,10 +31,12 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient();
+  const dsProfile = await resolveActiveProfile(admin, user.id);
   const { data, error } = await admin
     .from("pro_deposit_settings")
     .select("deposit_enabled, deposit_type, cancellation_policy, rules")
     .eq("user_id", user.id)
+    .eq("profile_id", dsProfile?.id ?? "")
     .maybeSingle();
 
   if (error) {
@@ -64,21 +66,40 @@ export async function PUT(request: Request) {
   }
 
   const admin = createAdminClient();
-  const { data, error } = await admin
+  const dsActiveProfile = await resolveActiveProfile(admin, user.id);
+  const dsProfileId = dsActiveProfile?.id ?? null;
+
+  // Chercher si un paramètre existe déjà pour ce profil
+  const { data: existingDs } = await admin
     .from("pro_deposit_settings")
-    .upsert(
-      {
-        user_id: user.id,
-        deposit_enabled: body.deposit_enabled,
-        deposit_type: body.deposit_type,
-        cancellation_policy: body.cancellation_policy,
-        rules: body.rules,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    )
-    .select("deposit_enabled, deposit_type, cancellation_policy, rules")
-    .single();
+    .select("user_id")
+    .eq("user_id", user.id)
+    .eq("profile_id", dsProfileId ?? "")
+    .maybeSingle();
+
+  const dsPayload = {
+    user_id: user.id,
+    profile_id: dsProfileId,
+    deposit_enabled: body.deposit_enabled,
+    deposit_type: body.deposit_type,
+    cancellation_policy: body.cancellation_policy,
+    rules: body.rules,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = existingDs
+    ? await admin
+        .from("pro_deposit_settings")
+        .update(dsPayload)
+        .eq("user_id", user.id)
+        .eq("profile_id", dsProfileId ?? "")
+        .select("deposit_enabled, deposit_type, cancellation_policy, rules")
+        .single()
+    : await admin
+        .from("pro_deposit_settings")
+        .insert(dsPayload)
+        .select("deposit_enabled, deposit_type, cancellation_policy, rules")
+        .single();
 
   if (error) {
     console.error("[api/pro/deposit-settings] PUT", error);

@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { availabilitiesPutSchema } from "@/lib/pro/availabilities-schema";
 import { averageDurationMinutes } from "@/lib/pro/style-duration-tiers";
+import { fetchProStyleOptions } from "@/lib/pro/tattoo-style-catalog";
 import { normalizeTimeForDb } from "@/lib/pro/weekdays";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
+import { resolveActiveProfile } from "@/lib/pro/active-profile";
 
 export async function GET(request: Request) {
   const user = await resolveRequestUser(request);
@@ -14,7 +16,10 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
 
-  const [schedulesRes, blockedRes, durationsRes, profileRes] = await Promise.all([
+  const activeProfile = await resolveActiveProfile(admin, user.id);
+  const profileId = activeProfile?.id ?? null;
+
+  const [schedulesRes, blockedRes, durationsRes] = await Promise.all([
     admin
       .from("pro_schedules")
       .select("id, day_of_week, start_time, end_time")
@@ -24,15 +29,14 @@ export async function GET(request: Request) {
     admin
       .from("pro_blocked_dates")
       .select("id, blocked_date, reason")
-      .eq("user_id", user.id)
+      .eq("profile_id", profileId ?? "")
       .order("blocked_date"),
     admin
       .from("pro_style_durations")
       .select(
         "style, size_category, duration_min_minutes, duration_max_minutes, duration_minutes",
       )
-      .eq("user_id", user.id),
-    admin.from("pro_profiles").select("styles").eq("user_id", user.id).maybeSingle(),
+      .eq("profile_id", profileId ?? ""),
   ]);
 
   if (schedulesRes.error) {
@@ -45,11 +49,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: durationsRes.error.message }, { status: 500 });
   }
 
+  const proStyles =
+    profileId != null
+      ? await fetchProStyleOptions(admin, profileId)
+      : [];
+
   return NextResponse.json({
     schedules: schedulesRes.data ?? [],
     blocked_dates: blockedRes.data ?? [],
     style_durations: durationsRes.data ?? [],
-    profile_styles: profileRes.data?.styles ?? [],
+    profile_styles: proStyles.map((s) => s.slug),
+    pro_styles: proStyles,
   });
 }
 
@@ -81,6 +91,8 @@ export async function PUT(request: Request) {
   }
 
   const admin = createAdminClient();
+  const putActiveProfile = await resolveActiveProfile(admin, user.id);
+  const putProfileId = putActiveProfile?.id ?? null;
 
   const { error: delSched } = await admin
     .from("pro_schedules")
@@ -111,7 +123,7 @@ export async function PUT(request: Request) {
   const { error: delBlocked } = await admin
     .from("pro_blocked_dates")
     .delete()
-    .eq("user_id", user.id);
+    .eq("profile_id", putProfileId ?? "");
   if (delBlocked) {
     return NextResponse.json({ error: delBlocked.message }, { status: 500 });
   }
@@ -119,6 +131,7 @@ export async function PUT(request: Request) {
   if (body.blocked_dates.length > 0) {
     const blockedRows = body.blocked_dates.map((d) => ({
       user_id: user.id,
+      profile_id: putProfileId,
       blocked_date: d,
     }));
     const { error: insBlocked } = await admin
@@ -132,7 +145,7 @@ export async function PUT(request: Request) {
   const { error: delDur } = await admin
     .from("pro_style_durations")
     .delete()
-    .eq("user_id", user.id);
+    .eq("profile_id", putProfileId ?? "");
   if (delDur) {
     return NextResponse.json({ error: delDur.message }, { status: 500 });
   }
@@ -140,6 +153,7 @@ export async function PUT(request: Request) {
   if (body.style_durations.length > 0) {
     const durationRows = body.style_durations.map((d) => ({
       user_id: user.id,
+      profile_id: putProfileId,
       style: d.style,
       size_category: d.size_category,
       duration_min_minutes: d.duration_min_minutes,

@@ -85,6 +85,7 @@ export type ProStudioPhotoRow = {
 export type ProPortfolioRow = {
   id: string;
   user_id: string;
+  profile_id: string | null;
   style: string;
   image_url: string;
   storage_path: string | null;
@@ -104,6 +105,7 @@ export type ProScheduleRow = {
 export type ProBlockedDateRow = {
   id: string;
   user_id: string;
+  profile_id: string | null;
   blocked_date: string;
   reason: string | null;
   created_at: string;
@@ -114,6 +116,7 @@ export type SizeCategory = "small" | "medium" | "large";
 export type ProStyleDurationRow = {
   id: string;
   user_id: string;
+  profile_id: string | null;
   style: string;
   size_category: SizeCategory;
   duration_min_minutes: number | null;
@@ -133,6 +136,7 @@ export type DepositRuleJson = {
 
 export type ProDepositSettingsRow = {
   user_id: string;
+  profile_id: string | null;
   deposit_enabled: boolean;
   deposit_type: DepositType;
   cancellation_policy: CancellationPolicy;
@@ -690,6 +694,7 @@ export interface Database {
 // ── Finance / Pricing ──────────────────────────────────────────────────────
 export type ProPricingSettingsRow = {
   user_id: string;
+  profile_id: string | null;
   size_small_min: number;
   size_small_max: number;
   size_medium_min: number;
