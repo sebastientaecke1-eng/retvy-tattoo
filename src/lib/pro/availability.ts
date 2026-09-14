@@ -98,10 +98,15 @@ export async function loadProAvailabilityContext(
 
   const [schedulesRes, blockedRes, durationsRes, bookingsRes] =
     await Promise.all([
-      admin
-        .from("pro_schedules")
-        .select("day_of_week, start_time, end_time")
-        .eq("user_id", proUserId),
+      profileId
+        ? admin
+            .from("pro_schedules")
+            .select("day_of_week, start_time, end_time")
+            .eq("profile_id", profileId)
+        : admin
+            .from("pro_schedules")
+            .select("day_of_week, start_time, end_time")
+            .eq("user_id", proUserId),
       profileId
         ? admin
             .from("pro_blocked_dates")

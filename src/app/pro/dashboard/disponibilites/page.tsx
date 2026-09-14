@@ -40,7 +40,7 @@ export default async function ProDashboardDisponibilitesPage() {
       admin
         .from("pro_schedules")
         .select("day_of_week, start_time, end_time")
-        .eq("user_id", user.id)
+        .eq("profile_id", profile.id)
         .order("day_of_week")
         .order("start_time"),
       admin

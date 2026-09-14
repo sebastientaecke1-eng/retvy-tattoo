@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     admin
       .from("pro_schedules")
       .select("id, day_of_week, start_time, end_time")
-      .eq("user_id", user.id)
+      .eq("profile_id", profileId ?? "")
       .order("day_of_week")
       .order("start_time"),
     admin
@@ -97,7 +97,7 @@ export async function PUT(request: Request) {
   const { error: delSched } = await admin
     .from("pro_schedules")
     .delete()
-    .eq("user_id", user.id);
+    .eq("profile_id", putProfileId ?? "");
   if (delSched) {
     return NextResponse.json({ error: delSched.message }, { status: 500 });
   }
@@ -106,6 +106,7 @@ export async function PUT(request: Request) {
     day.active
       ? day.slots.map((slot) => ({
           user_id: user.id,
+          profile_id: putProfileId,
           day_of_week: day.day_of_week,
           start_time: normalizeTimeForDb(slot.start_time),
           end_time: normalizeTimeForDb(slot.end_time),

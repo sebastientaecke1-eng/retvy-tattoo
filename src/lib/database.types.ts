@@ -96,6 +96,7 @@ export type ProPortfolioRow = {
 export type ProScheduleRow = {
   id: string;
   user_id: string;
+  profile_id: string | null;
   day_of_week: number;
   start_time: string;
   end_time: string;
@@ -313,6 +314,7 @@ export interface Database {
         Row: ProScheduleRow;
         Insert: {
           user_id: string;
+          profile_id?: string | null;
           day_of_week: number;
           start_time: string;
           end_time: string;
