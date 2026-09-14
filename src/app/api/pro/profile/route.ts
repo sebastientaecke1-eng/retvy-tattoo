@@ -10,6 +10,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureProRole } from "@/lib/supabase/ensure-pro-role";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
+import { resolveActiveProfile } from "@/lib/pro/active-profile";
 import {
   formatZodIssues,
   PROFILE_PATCH_LABELS,
@@ -77,15 +78,7 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient();
-  const { data: profile, error } = await admin
-    .from("pro_profiles")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const profile = await resolveActiveProfile(admin, user.id);
 
   const [{ data: portfolio }, proStyleIds] = await Promise.all([
     admin
@@ -120,11 +113,7 @@ export async function PATCH(request: Request) {
   const { style_ids: styleIds, ...profileFields } = body;
 
   const admin = createAdminClient();
-  const { data: existing } = await admin
-    .from("pro_profiles")
-    .select("id, user_id, address, postal_code, city, latitude, longitude")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const existing = await resolveActiveProfile(admin, user.id);
 
   if (!existing) {
     return NextResponse.json({ error: "Profil pro introuvable" }, { status: 404 });
@@ -149,7 +138,7 @@ export async function PATCH(request: Request) {
       longitude: coords.longitude,
       updated_at: new Date().toISOString(),
     })
-    .eq("user_id", user.id)
+    .eq("id", existing.id)
     .select("*")
     .single();
 
