@@ -40,18 +40,15 @@ async function syncSubscription(sub: Stripe.Subscription) {
   const priceId = sub.items?.data?.[0]?.price?.id ?? "";
   const tier = priceIdToTier(priceId);
 
-  const payload: Record<string, unknown> = {
+  const payload = {
     status: nextStatus,
     subscription_status: nextStatus,
     trial_ends_at: trialEndsAt,
     stripe_subscription_id: sub.id,
     stripe_customer_id:
       typeof sub.customer === "string" ? sub.customer : sub.customer.id,
+    ...(tier ? { subscription_tier: tier } : {}),
   };
-
-  if (tier) {
-    payload.subscription_tier = tier;
-  }
 
   const query = admin.from("pro_profiles").update(payload);
   if (userId) {
