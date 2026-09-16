@@ -50,6 +50,9 @@ export default async function ProDashboardProfilPage() {
       fetchProStyleIds(admin, profile.id),
     ]);
 
+  const tier = (profile as Record<string, unknown>).subscription_tier as string | null | undefined;
+  const canUseStudio = tier === "23" || tier === "3plus";
+
   return (
     <ProfileEditForm
       initialProfile={profile}
@@ -57,6 +60,7 @@ export default async function ProDashboardProfilPage() {
       initialStudioPhotos={studioPhotos ?? []}
       initialProStyleIds={proStyleIds}
       styleCatalog={styleCatalog}
+      canUseStudio={canUseStudio}
     />
   );
 }

@@ -8,9 +8,19 @@ import type {
   ProProfileRow,
   ProStudioPhotoRow,
 } from "@/lib/database.types";
-import { PRO_STYLE_OPTIONS, type ProStyleId } from "@/lib/pro/styles";
+import {
+  type ProStyleSelection,
+  type TattooStyleCatalog,
+  proStyleOptionsFromIds,
+  rebuildCatalogMaps,
+  resolveStyleIdsForSave,
+  selectionFromStyleIds,
+  selectionHasStyles,
+  styleLabelFromCatalog,
+} from "@/lib/pro/tattoo-style-catalog";
+import { ProStylePicker } from "@/components/pro/pro-style-picker";
+import { ProAddressFields } from "@/components/pro/pro-address-fields";
 import { MAX_STUDIO_PHOTOS } from "@/lib/pro/studio";
-import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,21 +36,26 @@ type Props = {
   initialProfile: ProProfileRow;
   initialPortfolio: PortfolioItem[];
   initialStudioPhotos: StudioPhotoItem[];
+  initialProStyleIds: string[];
+  styleCatalog: TattooStyleCatalog;
+  canUseStudio?: boolean;
 };
-
-function normalizeStyles(styles: string[]): ProStyleId[] {
-  return styles.filter((s): s is ProStyleId =>
-    PRO_STYLE_OPTIONS.some((o) => o.id === s),
-  );
-}
 
 export function ProfileEditForm({
   initialProfile,
   initialPortfolio,
   initialStudioPhotos,
+  initialProStyleIds,
+  styleCatalog: styleCatalogProp,
+  canUseStudio = false,
 }: Props) {
+  const styleCatalog = useMemo(
+    () => rebuildCatalogMaps(styleCatalogProp),
+    [styleCatalogProp],
+  );
   const [artistName, setArtistName] = useState(initialProfile.artist_name);
   const [studio, setStudio] = useState(initialProfile.studio ?? "");
+  const [studioSlug, setStudioSlug] = useState((initialProfile as Record<string, unknown>).studio_slug as string ?? "");
   const [city, setCity] = useState(initialProfile.city);
   const [address, setAddress] = useState(initialProfile.address ?? "");
   const [postalCode, setPostalCode] = useState(
@@ -48,8 +63,8 @@ export function ProfileEditForm({
   );
   const [phone, setPhone] = useState(initialProfile.phone);
   const [bio, setBio] = useState(initialProfile.bio ?? "");
-  const [styles, setStyles] = useState<ProStyleId[]>(
-    normalizeStyles(initialProfile.styles ?? []),
+  const [styleSelection, setStyleSelection] = useState<ProStyleSelection>(() =>
+    selectionFromStyleIds(styleCatalog, initialProStyleIds),
   );
   const [priceMin, setPriceMin] = useState(
     initialProfile.price_min != null ? String(initialProfile.price_min) : "",
@@ -81,11 +96,29 @@ export function ProfileEditForm({
     return map;
   }, [portfolio]);
 
-  function toggleStyle(id: ProStyleId) {
-    setStyles((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
-    );
-  }
+  const proStyleOptions = useMemo(() => {
+    const ids = resolveStyleIdsForSave(styleCatalog, styleSelection);
+    return proStyleOptionsFromIds(styleCatalog, ids);
+  }, [styleCatalog, styleSelection]);
+
+  const portfolioSections = useMemo(() => {
+    const slugSet = new Set(proStyleOptions.map((o) => o.slug));
+    for (const item of portfolio) {
+      slugSet.add(item.style);
+    }
+    const labelFor = (slug: string) =>
+      styleLabelFromCatalog(slug, styleCatalog) ??
+      proStyleOptions.find((o) => o.slug === slug)?.label ??
+      slug;
+    return [...slugSet]
+      .map((slug) => ({ slug, label: labelFor(slug) }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr"));
+  }, [proStyleOptions, portfolio, styleCatalog]);
+
+  const uploadableStyleSlugs = useMemo(
+    () => new Set(proStyleOptions.map((o) => o.slug)),
+    [proStyleOptions],
+  );
 
   async function uploadAvatar(file: File) {
     setAvatarUploading(true);
@@ -109,13 +142,13 @@ export function ProfileEditForm({
     }
   }
 
-  async function uploadPortfolio(style: ProStyleId, file: File) {
-    setPortfolioUploading(style);
+  async function uploadPortfolio(styleSlug: string, file: File) {
+    setPortfolioUploading(styleSlug);
     setError(null);
     try {
       const fd = new FormData();
       fd.set("kind", "portfolio");
-      fd.set("style", style);
+      fd.set("style", styleSlug);
       fd.set("file", file);
       const res = await fetch("/api/pro/profile/upload", {
         method: "POST",
@@ -202,11 +235,13 @@ export function ProfileEditForm({
     setError(null);
     setSaved(false);
 
-    if (styles.length === 0) {
-      setError("Sélectionnez au moins un style.");
+    if (!selectionHasStyles(styleSelection)) {
+      setError("Sélectionnez au moins une famille de styles.");
       setSaving(false);
       return;
     }
+
+    const styleIds = resolveStyleIdsForSave(styleCatalog, styleSelection);
 
     const pMin = priceMin.trim() === "" ? null : Number(priceMin);
     const pMax = priceMax.trim() === "" ? null : Number(priceMax);
@@ -239,12 +274,13 @@ export function ProfileEditForm({
         body: JSON.stringify({
           artist_name: artistName.trim(),
           studio: studio.trim() || null,
+          studio_slug: studioSlug.trim() || null,
           city: city.trim(),
           address: address.trim() || null,
           postal_code: postalTrimmed || null,
           phone: phone.trim(),
           bio: bio.trim() || null,
-          styles,
+          style_ids: styleIds,
           price_min: pMin,
           price_max: pMax,
           avatar_url: avatarUrl,
@@ -264,7 +300,7 @@ export function ProfileEditForm({
   return (
     <form onSubmit={handleSave} className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-zinc-50">Mon profil</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Mon profil</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Page publique :{" "}
           <span className="font-mono text-blue-400">/ink/{initialProfile.slug}</span>
@@ -272,25 +308,25 @@ export function ProfileEditForm({
       </div>
 
       {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-700 dark:text-red-300">
           {error}
         </p>
       )}
       {saved && (
-        <p className="flex items-center gap-2 text-sm text-emerald-400">
+        <p className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
           <Check className="h-4 w-4" />
           Profil enregistré
         </p>
       )}
 
-      <Card className="border-zinc-800 bg-zinc-950/80">
+      <Card>
         <CardHeader>
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Photo de profil
           </p>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-6 pt-0">
-          <div className="relative h-24 w-24 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+          <div className="relative h-24 w-24 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
             {avatarUrl ? (
               <Image
                 src={avatarUrl}
@@ -328,7 +364,7 @@ export function ProfileEditForm({
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-800 bg-zinc-950/80">
+      <Card>
         <CardHeader>
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Informations
@@ -342,9 +378,39 @@ export function ProfileEditForm({
               required
             />
           </Field>
-          <Field label="Nom du studio">
-            <Input value={studio} onChange={(e) => setStudio(e.target.value)} />
-          </Field>
+          {canUseStudio && (
+            <Field label="Nom du studio">
+              <Input value={studio} onChange={(e) => {
+                setStudio(e.target.value);
+                // Auto-génère le studio_slug si le pro n'en a pas encore un
+                if (!studioSlug) {
+                  setStudioSlug(
+                    e.target.value
+                      .toLowerCase()
+                      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+                      .replace(/[^a-z0-9]+/g, "-")
+                      .replace(/^-|-$/g, "")
+                  );
+                }
+              }} />
+            </Field>
+          )}
+          {canUseStudio && (
+            <Field label="URL du studio (pour Google)">
+              <div className="flex items-center gap-0 rounded-xl border border-zinc-300 dark:border-zinc-800 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500/60">
+                <span className="px-3 py-2.5 text-sm text-zinc-400 bg-zinc-100 dark:bg-zinc-900 shrink-0 border-r border-zinc-300 dark:border-zinc-800">/studio/</span>
+                <input
+                  value={studioSlug}
+                  onChange={(e) => setStudioSlug(
+                    e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/--+/g, "-")
+                  )}
+                  className="flex-1 px-3 py-2.5 text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none"
+                  placeholder="mon-studio-paris"
+                />
+              </div>
+              <p className="mt-1 text-xs text-zinc-400">Visible sur Google. Uniquement lettres minuscules, chiffres et tirets.</p>
+            </Field>
+          )}
           <Field label="Téléphone *">
             <Input
               value={phone}
@@ -353,42 +419,29 @@ export function ProfileEditForm({
               type="tel"
             />
           </Field>
-          <Field label="Adresse" className="sm:col-span-2">
-            <AddressAutocomplete
-              value={address}
-              onChange={setAddress}
-              onSelect={({ address: nextAddress, city: nextCity, postalCode: nextPostal }) => {
-                setAddress(nextAddress);
-                setCity(nextCity);
-                setPostalCode(nextPostal);
-              }}
-            />
-          </Field>
-          <Field label="Code postal">
-            <Input
-              value={postalCode}
-              onChange={(e) => setPostalCode(e.target.value)}
-              inputMode="numeric"
-              placeholder="75011"
-              maxLength={5}
-            />
-          </Field>
-          <Field label="Ville *">
-            <Input value={city} onChange={(e) => setCity(e.target.value)} required />
-          </Field>
+          <ProAddressFields
+            layout="grid"
+            address={address}
+            city={city}
+            postalCode={postalCode}
+            onAddressChange={setAddress}
+            onCityChange={setCity}
+            onPostalCodeChange={setPostalCode}
+            cityRequired
+          />
           <Field label="Bio" className="sm:col-span-2">
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={5}
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-600"
               placeholder="Présentez votre univers, votre expérience…"
             />
           </Field>
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-800 bg-zinc-950/80">
+      <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
@@ -432,7 +485,7 @@ export function ProfileEditForm({
               {studioPhotos.map((photo) => (
                 <div
                   key={photo.id}
-                  className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900"
+                  className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
                 >
                   <Image
                     src={photo.image_url}
@@ -459,36 +512,23 @@ export function ProfileEditForm({
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-800 bg-zinc-950/80">
+      <Card>
         <CardHeader>
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Styles pratiqués
           </p>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="flex flex-wrap gap-2">
-            {PRO_STYLE_OPTIONS.map((opt) => {
-              const on = styles.includes(opt.id);
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => toggleStyle(opt.id)}
-                  className={
-                    on
-                      ? "rounded-full border border-blue-500 bg-blue-500/15 px-3 py-1.5 text-sm font-medium text-blue-300"
-                      : "rounded-full border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 hover:border-zinc-600"
-                  }
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+          <ProStylePicker
+            catalog={styleCatalog}
+            value={styleSelection}
+            onChange={setStyleSelection}
+            disabled={saving}
+          />
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-800 bg-zinc-950/80">
+      <Card>
         <CardHeader>
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Tarifs indicatifs (€)
@@ -516,60 +556,62 @@ export function ProfileEditForm({
         </CardContent>
       </Card>
 
-      <Card className="border-zinc-800 bg-zinc-950/80">
+      <Card>
         <CardHeader>
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
             Portfolio par style
           </p>
           <p className="mt-1 text-sm text-zinc-500">
-            Ajoutez des photos pour chaque style que vous pratiquez.
+            Ajoutez des photos pour chaque style de votre profil.
           </p>
         </CardHeader>
         <CardContent className="space-y-8 pt-0">
-          {styles.length === 0 && (
+          {portfolioSections.length === 0 && (
             <p className="text-sm text-zinc-500">
-              Cochez au moins un style pour afficher les zones d&apos;upload.
+              Sélectionnez au moins un style dans la section Styles pour ajouter
+              des photos au portfolio.
             </p>
           )}
-          {styles.map((styleId) => {
-            const label =
-              PRO_STYLE_OPTIONS.find((o) => o.id === styleId)?.label ?? styleId;
-            const images = portfolioByStyle.get(styleId) ?? [];
-            const uploading = portfolioUploading === styleId;
+          {portfolioSections.map(({ slug, label }) => {
+            const images = portfolioByStyle.get(slug) ?? [];
+            const uploading = portfolioUploading === slug;
+            const canUpload = uploadableStyleSlugs.has(slug);
 
             return (
               <div
-                key={styleId}
-                className="rounded-xl border border-zinc-800/80 p-4"
+                key={slug}
+                className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800/80"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="font-medium text-zinc-200">{label}</h3>
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300">
-                    {uploading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    Ajouter une photo
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      className="hidden"
-                      disabled={uploading}
-                      onChange={(ev) => {
-                        const f = ev.target.files?.[0];
-                        if (f) void uploadPortfolio(styleId, f);
-                        ev.target.value = "";
-                      }}
-                    />
-                  </label>
+                  <h3 className="font-medium text-zinc-900 dark:text-zinc-200">{label}</h3>
+                  {canUpload && (
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300">
+                      {uploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      Ajouter une photo
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="hidden"
+                        disabled={uploading}
+                        onChange={(ev) => {
+                          const f = ev.target.files?.[0];
+                          if (f) void uploadPortfolio(slug, f);
+                          ev.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
                 </div>
                 {images.length > 0 ? (
                   <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
                     {images.map((img) => (
                       <div
                         key={img.id}
-                        className="group relative aspect-square overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900"
+                        className="group relative aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
                       >
                         <Image
                           src={img.image_url}
@@ -626,7 +668,7 @@ function Field({
 }) {
   return (
     <label className={className}>
-      <span className="mb-1.5 block text-sm text-zinc-400">{label}</span>
+      <span className="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">{label}</span>
       {children}
     </label>
   );

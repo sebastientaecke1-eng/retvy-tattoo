@@ -5,6 +5,8 @@ import { PersonalLinkSection } from "@/components/pro/personal-link-section";
 import { Button } from "@/components/ui/button";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getOrCreateReferralCode } from "@/lib/referral";
+import { resolveActiveProfile } from "@/lib/pro/active-profile";
 
 export default async function ProDashboardLienPage() {
   const supabase = await createClient();
@@ -18,15 +20,11 @@ export default async function ProDashboardLienPage() {
     redirect("/client/dashboard");
   }
 
-  const { data: profile } = await admin
-    .from("pro_profiles")
-    .select("slug, artist_name")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const profile = await resolveActiveProfile(admin, user.id);
 
   if (!profile) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-8 text-center">
+      <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950/80 p-8 text-center">
         <p className="text-zinc-400">Aucun profil pro trouvé.</p>
         <Link href="/pro/inscription" className="mt-4 inline-block">
           <Button>Commencer l&apos;inscription</Button>
@@ -37,7 +35,7 @@ export default async function ProDashboardLienPage() {
 
   if (!profile.slug) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-8 text-center">
+      <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950/80 p-8 text-center">
         <h1 className="text-xl font-bold">Mon lien perso</h1>
         <p className="mt-2 text-zinc-400">
           Créez d&apos;abord votre slug dans votre profil pour obtenir votre
@@ -50,5 +48,20 @@ export default async function ProDashboardLienPage() {
     );
   }
 
-  return <PersonalLinkSection slug={profile.slug} />;
+  let referralCode: string | null = null;
+  try {
+    referralCode = await getOrCreateReferralCode(user.id);
+  } catch {
+    // Non bloquant
+  }
+
+  const studioSlug = (profile as Record<string, unknown>).studio_slug as string | null | undefined;
+
+  return (
+    <PersonalLinkSection
+      slug={profile.slug}
+      studioSlug={studioSlug ?? undefined}
+      referralCode={referralCode}
+    />
+  );
 }

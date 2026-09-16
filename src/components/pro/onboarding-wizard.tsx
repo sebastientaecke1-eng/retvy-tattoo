@@ -959,10 +959,6 @@ export function OnboardingWizard() {
               <label className="mb-1 block text-sm text-zinc-400">Nom d&apos;artiste *</label>
               <Input value={artistName} onChange={(e) => { setArtistName(e.target.value); if (!slugTouched) setSlug(slugify(e.target.value)); }} required />
             </div>
-            <div>
-              <label className="mb-1 block text-sm text-zinc-400">Studio</label>
-              <Input value={studio} onChange={(e) => setStudio(e.target.value)} />
-            </div>
             <ProAddressFields
               layout="stack"
               address={address} city={city} postalCode={postalCode}
