@@ -10,7 +10,7 @@ import type { ProProfileRow } from "@/lib/database.types";
 
 const CatalogueMap = dynamic(
   () => import("./catalogue-map").then((m) => m.CatalogueMap),
-  { ssr: false, loading: () => <div className="w-full h-full bg-zinc-100 animate-pulse rounded-xl" /> }
+  { ssr: false, loading: () => <div className="w-full h-full bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-xl" /> }
 );
 
 const STYLE_GROUPS = [
@@ -45,8 +45,8 @@ function ArtistCard({ artist, isSelected, onClick }: ArtistCardProps) {
   return (
     <div
       onClick={onClick}
-      className={`group relative rounded-xl border bg-white cursor-pointer transition-all duration-200 overflow-hidden hover:shadow-md ${
-        isSelected ? "border-blue-500 shadow-md ring-2 ring-blue-200" : "border-zinc-200 hover:border-zinc-300"
+      className={`group relative rounded-xl border bg-white dark:bg-zinc-900 cursor-pointer transition-all duration-200 overflow-hidden hover:shadow-md ${
+        isSelected ? "border-blue-500 shadow-md ring-2 ring-blue-200" : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
       }`}
     >
       <div className="relative h-36 bg-zinc-100 overflow-hidden">
@@ -59,8 +59,8 @@ function ArtistCard({ artist, isSelected, onClick }: ArtistCardProps) {
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-200">
-            <span className="text-3xl font-bold text-zinc-300">{artist.artist_name[0]}</span>
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-700">
+            <span className="text-3xl font-bold text-zinc-300 dark:text-zinc-600">{artist.artist_name[0]}</span>
           </div>
         )}
         {artist.cover_url && artist.avatar_url && (
@@ -73,23 +73,23 @@ function ArtistCard({ artist, isSelected, onClick }: ArtistCardProps) {
       <div className="p-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h3 className="font-semibold text-sm text-zinc-900 leading-tight">{artist.artist_name}</h3>
-            {artist.studio && <p className="text-xs text-zinc-500 mt-0.5">{artist.studio}</p>}
+            <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 leading-tight">{artist.artist_name}</h3>
+            {artist.studio && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{artist.studio}</p>}
           </div>
           {priceStr && (
-            <span className="text-xs text-zinc-500 whitespace-nowrap shrink-0">{priceStr}</span>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap shrink-0">{priceStr}</span>
           )}
         </div>
 
         <div className="flex items-center gap-1 mt-1.5">
-          <MapPin size={11} className="text-zinc-400 shrink-0" />
-          <span className="text-xs text-zinc-500 truncate">{artist.city}</span>
+          <MapPin size={11} className="text-zinc-400 dark:text-zinc-500 shrink-0" />
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{artist.city}</span>
         </div>
 
         {styles.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
             {styles.map((s) => (
-              <span key={s} className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full">
+              <span key={s} className="text-[10px] bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full">
                 {styleLabel(s)}
               </span>
             ))}
@@ -99,7 +99,7 @@ function ArtistCard({ artist, isSelected, onClick }: ArtistCardProps) {
         <Link
           href={`/ink/${artist.slug}`}
           onClick={(e) => e.stopPropagation()}
-          className="mt-3 block text-center text-xs font-semibold text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-lg py-1.5 transition-colors"
+          className="mt-3 block text-center text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 border border-blue-200 dark:border-blue-800 hover:border-blue-400 rounded-lg py-1.5 transition-colors"
         >
           Voir le profil →
         </Link>
@@ -231,7 +231,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
     return (
       <div className="flex flex-col items-center justify-center" style={{ height: "calc(100dvh - 64px)" }}>
         <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
-        <p className="mt-4 text-sm text-zinc-500">Chargement des tatoueurs…</p>
+        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Chargement des tatoueurs…</p>
       </div>
     );
   }
@@ -239,7 +239,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
   return (
     <div className="flex flex-col" style={{ height: "calc(100dvh - 64px)", minHeight: "600px" }}>
       {/* Top bar */}
-      <div className="shrink-0 bg-white border-b border-zinc-200 px-4 py-3">
+      <div className="shrink-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-3">
         <div className="flex gap-2 items-center">
           {/* Artist name search */}
           <div className="relative flex-1">
@@ -249,7 +249,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
               value={nameQuery}
               onChange={(e) => setNameQuery(e.target.value)}
               placeholder="Rechercher un tatoueur…"
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
             />
           </div>
 
@@ -260,7 +260,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
               className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
                 filtersOpen || activeFilterCount > 0
                   ? "border-blue-500 text-blue-600 bg-blue-50"
-                  : "border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                  : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800"
               }`}
             >
               <SlidersHorizontal size={15} />
@@ -274,10 +274,10 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
 
             {/* Filter dropdown panel */}
             {filtersOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-zinc-200 shadow-xl z-50 p-4 space-y-4">
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-xl z-50 p-4 space-y-4">
                 {/* City */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Ville</label>
+                  <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Ville</label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
@@ -286,7 +286,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
                         value={cityQuery}
                         onChange={(e) => setCityQuery(e.target.value)}
                         placeholder="Ex : Paris, Lyon…"
-                        className="w-full pl-8 pr-7 py-2 text-sm rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                        className="w-full pl-8 pr-7 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                       />
                       {cityQuery && (
                         <button
@@ -301,7 +301,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
                       onClick={handleLocate}
                       disabled={locating}
                       title="Autour de moi"
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-zinc-200 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-50 shrink-0"
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 dark:text-zinc-400 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-50 shrink-0"
                     >
                       <Locate size={14} className={locating ? "animate-spin" : ""} />
                       <span className="text-xs">Autour de moi</span>
@@ -311,7 +311,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
 
                 {/* Styles */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Style</label>
+                  <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Style</label>
                   <div className="flex flex-wrap gap-1.5">
                     {STYLE_GROUPS.map((group) => (
                       <button
@@ -327,7 +327,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
                         className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
                           group.ids.some((id) => selectedStyles.includes(id))
                             ? "bg-blue-500 text-white border-blue-500"
-                            : "bg-white text-zinc-600 border-zinc-200 hover:border-blue-300 hover:text-blue-600"
+                            : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-600 hover:border-blue-300 hover:text-blue-600"
                         }`}
                       >
                         {group.label}
@@ -337,10 +337,10 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between pt-1 border-t border-zinc-100">
+                <div className="flex items-center justify-between pt-1 border-t border-zinc-100 dark:border-zinc-800">
                   <button
                     onClick={resetFilters}
-                    className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors"
+                    className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors"
                   >
                     Réinitialiser les filtres
                   </button>
@@ -360,24 +360,24 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
             onClick={handleLocate}
             disabled={locating}
             title="Autour de moi"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-zinc-200 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 dark:text-zinc-400 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-50"
           >
             <Locate size={15} className={locating ? "animate-spin" : ""} />
             <span className="hidden md:inline">Autour de moi</span>
           </button>
 
           {/* View toggle */}
-          <div className="flex rounded-lg border border-zinc-200 overflow-hidden">
+          <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
             <button
               onClick={() => setView("map")}
-              className={`px-3 py-2 flex items-center gap-1.5 text-sm transition-colors ${view === "map" ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-600"}`}
+              className={`px-3 py-2 flex items-center gap-1.5 text-sm transition-colors ${view === "map" ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400"}`}
             >
               <Map size={15} />
               <span className="hidden sm:inline">Carte</span>
             </button>
             <button
               onClick={() => setView("grid")}
-              className={`px-3 py-2 flex items-center gap-1.5 text-sm transition-colors ${view === "grid" ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-600"}`}
+              className={`px-3 py-2 flex items-center gap-1.5 text-sm transition-colors ${view === "grid" ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400"}`}
             >
               <LayoutGrid size={15} />
               <span className="hidden sm:inline">Grille</span>
@@ -412,7 +412,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
         )}
 
         {/* Result count */}
-        <p className="text-xs text-zinc-400 mt-2">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-2">
           {filtered.length} tatoueur{filtered.length !== 1 ? "s" : ""}
           {activeFilterCount > 0 ? " correspondent à vos critères" : " sur Retvy"}
         </p>
@@ -433,7 +433,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
             </div>
           </div>
 
-          <div className="hidden lg:flex flex-col w-80 shrink-0 border-l border-zinc-200 overflow-y-auto bg-white">
+          <div className="hidden lg:flex flex-col w-80 shrink-0 border-l border-zinc-200 dark:border-zinc-800 overflow-y-auto bg-white dark:bg-zinc-950">
             {filtered.length === 0 ? (
               <EmptyState hasFilters={activeFilterCount > 0} />
             ) : (
@@ -452,7 +452,7 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto bg-zinc-50">
+        <div className="flex-1 overflow-y-auto bg-zinc-50 dark:bg-zinc-950">
           {filtered.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <EmptyState hasFilters={activeFilterCount > 0} />
@@ -478,14 +478,14 @@ export function CatalogueClient({ artists: initialArtists }: Props) {
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
-      <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center">
+      <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
         <Search size={20} className="text-zinc-400" />
       </div>
       <div>
-        <p className="text-sm font-medium text-zinc-700">
+        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           {hasFilters ? "Aucun résultat" : "Bientôt disponible"}
         </p>
-        <p className="text-xs text-zinc-500 mt-1">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
           {hasFilters
             ? "Essayez d&apos;élargir vos critères de recherche."
             : "Les premiers tatoueurs arrivent prochainement sur Retvy."}
