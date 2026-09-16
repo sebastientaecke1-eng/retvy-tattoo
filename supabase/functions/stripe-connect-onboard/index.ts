@@ -130,8 +130,9 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", userId)
-        .eq("is_sub_profile", false)
+        // Propage le stripe_account_id à TOUS les profils du studio (principal + sous-profils)
         .select("stripe_account_id")
+        .limit(1)
         .maybeSingle();
 
       if (updateError) {
