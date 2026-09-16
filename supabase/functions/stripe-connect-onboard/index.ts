@@ -130,8 +130,9 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", userId)
+        .eq("is_sub_profile", false)
         .select("stripe_account_id")
-        .single();
+        .maybeSingle();
 
       if (updateError) {
         console.error("[stripe-connect-onboard] profile update", updateError);
