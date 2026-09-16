@@ -1,3 +1,28 @@
+/**
+ * route.ts — /api/ink/[slug]/chat
+ * ---------------------------------
+ * Chatbot de réservation alimenté par OpenAI (Vercel AI SDK).
+ *
+ * Fonctionnement général :
+ *   1. Charge le profil public du tatoueur via son slug.
+ *   2. Interroge ses styles actifs (pro_styles + catalogue) pour personnaliser le prompt.
+ *   3. Expose 4 outils à l'IA :
+ *      - check_preferred_dates    : vérifie les disponibilités pour des dates données
+ *      - propose_available_slots  : propose 3 créneaux selon style/taille/préférences
+ *      - get_day_slots            : liste tous les créneaux d'une journée précise
+ *      - complete_booking_intake  : finalise le dossier client avec estimation du prix
+ *   4. Retourne un stream de réponse UI (useChat-compatible).
+ *
+ * L'IA guide le client étape par étape (style → zone → taille → couleur →
+ * image de référence → budget → dates → créneau → coordonnées) et appelle
+ * `complete_booking_intake` une fois toutes les informations collectées.
+ *
+ * Variables d'environnement requises :
+ *   - OPENAI_API_KEY   : clé API OpenAI
+ *   - OPENAI_MODEL     : modèle à utiliser pour les conversations sans image (défaut : gpt-4o-mini)
+ *     → Si le client envoie une image, le modèle bascule automatiquement sur gpt-4o (vision).
+ */
+
 import {
   convertToModelMessages,
   streamText,
@@ -26,11 +51,26 @@ import { fetchProStyleOptions } from "@/lib/pro/tattoo-style-catalog";
 import { fetchPublicProProfileBySlug } from "@/lib/pro/public-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { estimatePrice } from "@/lib/artists";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+/** Durée maximale de la route Vercel/Cloudflare (en secondes). */
 export const maxDuration = 60;
 
+/** Timeout OpenAI légèrement inférieur à maxDuration pour éviter les coupures brutales. */
 const OPENAI_TIMEOUT_MS = 55_000;
 
+// ---------------------------------------------------------------------------
+// Utilitaires internes
+// ---------------------------------------------------------------------------
+
+/**
+ * Enveloppe l'exécution d'un outil dans un try/catch.
+ * En cas d'erreur, retourne un objet `{ error }` plutôt que de planter le stream.
+ */
 async function safeToolExecute<T>(
   toolName: string,
   fn: () => Promise<T>,
@@ -45,6 +85,10 @@ async function safeToolExecute<T>(
   }
 }
 
+/**
+ * Charge le contexte de disponibilité du tatoueur sans faire crasher la route.
+ * Retourne un contexte vide (pas de créneaux) en cas d'erreur Supabase.
+ */
 async function loadAvailabilitySafe(
   proUserId: string,
   rangeStart: Date,
@@ -58,6 +102,10 @@ async function loadAvailabilitySafe(
   }
 }
 
+/**
+ * Détecte si le client a joint une image dans son historique de messages.
+ * Si oui, on passe sur gpt-4o (vision) au lieu de gpt-4o-mini.
+ */
 function uiMessagesHaveImages(messages: UIMessage[]): boolean {
   return messages.some((message) =>
     message.parts?.some(
@@ -70,6 +118,24 @@ function uiMessagesHaveImages(messages: UIMessage[]): boolean {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Prompt système
+// ---------------------------------------------------------------------------
+
+/**
+ * Construit le prompt système injecté dans chaque requête OpenAI.
+ *
+ * Le prompt :
+ *   - Identifie l'IA comme l'assistant du tatoueur `artistName`
+ *   - Liste les styles proposés par ce tatoueur (issus de pro_styles + catalogue)
+ *   - Définit l'ordre strict des questions (style → … → téléphone)
+ *   - Adapte les instructions si le client a déjà envoyé une image de référence
+ *
+ * @param artistName       - Nom affiché du tatoueur
+ * @param styles           - Styles actifs du tatoueur {slug, label}
+ * @param currentDateIso   - Date ISO actuelle (pour calculer les dates futures)
+ * @param hasReferenceImage - Le client a-t-il joint une image dans le chat ?
+ */
 function buildInkSystemPrompt(
   artistName: string,
   styles: Array<{ slug: string; label: string }>,
@@ -85,6 +151,7 @@ function buildInkSystemPrompt(
     timeZone: "Europe/Paris",
   });
   const styleList = styles.map((s) => `- ${s.label} (id: ${s.slug})`).join("\n");
+
   return `Tu es l'assistant de réservation Retvy pour le tatoueur ${artistName}.
 Tu guides le client en français, une seule question à la fois, ton bienveillant et concis.
 
@@ -107,17 +174,27 @@ ${styleList}
    Enregistre color_preference : "color" | "black_and_grey" | "undecided"
 6. Image de référence (optionnel — le client peut dire "non" ou "passer")
 7. Budget approximatif en euros
+   - Dès que tu as le budget, appelle get_price_estimate (style + taille + color_preference déjà connus).
+   - Si price_estimate.min > budget : dis-le clairement avant de continuer, ex : « Pour un tatouage [style] de taille [taille] en [couleur], l'estimation est de X–Y€. Avec un budget de Z€, il faudra probablement prévoir un peu plus. Souhaitez-vous continuer malgré tout ? »
+   - Si le client confirme qu'il veut continuer : poursuis normalement.
+   - Ne bloque pas la réservation, informe seulement.
 8. Dates souhaitées (une ou plusieurs) — utilise l'outil check_preferred_dates
-9. Propose 3 créneaux via propose_available_slots (style + taille requis)
-10. Prénom et nom du client
-11. Email
-12. Téléphone
+9. Préférence horaire — demande exactement : « Préférez-vous un rendez-vous le matin ou l'après-midi ? »
+   Enregistre time_preference : "morning" | "afternoon" | "any" (si indifférent)
+10. Propose 3 créneaux via propose_available_slots (style + taille + time_preference requis)
+    - Si aucun créneau dans la plage préférée, l'outil retourne automatiquement le créneau le plus tôt disponible
+    - Dans ce cas, informe le client : « Aucun créneau disponible le [matin/après-midi] pour cette date. Le plus tôt disponible est X. »
+11. Prénom et nom du client
+12. Email
+13. Téléphone
 
-${hasReferenceImage ? `Photo de référence :
+${hasReferenceImage
+  ? `Photo de référence :
 - Le client a déjà uploadé une image de référence (visible dans le chat).
 - Analyse-la visuellement : style probable, zone suggérée, couleur/N&B, éléments clés.
 - Pose des questions en lien avec ce que tu vois, sans répéter inutilement les questions déjà couvertes.
-- Intègre tes observations dans reference_note lors de complete_booking_intake.` : `Photo de référence :
+- Intègre tes observations dans reference_note lors de complete_booking_intake.`
+  : `Photo de référence :
 - Le client peut ajouter une photo à tout moment via le bouton dédié.
 - Si une image arrive plus tard, analyse-la et adapte tes questions.`}
 
@@ -136,10 +213,28 @@ Règles :
 - Ne mentionne pas Stripe ni les détails techniques.`;
 }
 
+// ---------------------------------------------------------------------------
+// Route POST
+// ---------------------------------------------------------------------------
+
+/**
+ * Handler POST — traite un tour de conversation du chatbot de réservation.
+ *
+ * Corps attendu : `{ messages: UIMessage[] }` (format Vercel AI SDK useChat).
+ * Retourne un stream `UIMessageStreamResponse` consommé côté client par useChat.
+ *
+ * @param request - Requête HTTP entrante
+ * @param params  - Paramètre de route : `slug` du tatoueur (ex: "jean-dupont")
+ */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  // Rate limit : 20 messages / min par IP (protège les crédits OpenAI)
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(`chat:${ip}`, { limit: 20, windowSecs: 60 });
+  if (!rl.ok) return rateLimitResponse(rl);
+
   const key = process.env.OPENAI_API_KEY;
   if (!key) {
     console.error("[ink/chat] OPENAI_API_KEY manquante");
@@ -148,35 +243,49 @@ export async function POST(
 
   try {
     const { slug } = await params;
+
+    // --- 1. Profil du tatoueur ---
     const profile = await fetchPublicProProfileBySlug(slug);
     if (!profile?.user_id || !profile.artist_name) {
       return new Response("Profil introuvable", { status: 404 });
     }
 
-    const body = (await request.json()) as { messages?: UIMessage[] };
+    // --- 2. Corps de la requête ---
+    const body = (await request.json()) as { messages?: UIMessage[]; referenceImageUrl?: string };
+    console.log("[ink/chat] referenceImageUrl reçu:", body.referenceImageUrl ?? "AUCUN");
     if (!Array.isArray(body.messages)) {
       return new Response("messages requis", { status: 400 });
     }
 
-    // Lire les styles depuis pro_styles + catalogue (nouveau système)
     const admin = createAdminClient();
     const proProfileId = profile.id ?? "";
+    const proUserId    = profile.user_id;
+
+    // --- 3. Styles actifs du tatoueur (pour le prompt) ---
     const proStyleOptions = proProfileId
       ? await fetchProStyleOptions(admin, proProfileId)
       : [];
-    const proUserId = profile.user_id;
-    const rangeStart = new Date();
-    const rangeEnd = new Date(rangeStart.getTime() + 60 * 24 * 60 * 60 * 1000);
 
+    // Fenêtre de disponibilité : aujourd'hui + 60 jours
+    const rangeStart = new Date();
+    const rangeEnd   = new Date(rangeStart.getTime() + 60 * 24 * 60 * 60 * 1000);
+
+    // --- 4. Modèle OpenAI ---
     const openai = createOpenAI({ apiKey: key });
-    const hasReferenceImage = uiMessagesHaveImages(body.messages);
+    const hasReferenceImage = uiMessagesHaveImages(body.messages) || !!body.referenceImageUrl;
+    // gpt-4o si une image est présente (vision requise), sinon gpt-4o-mini ou variable d'env
     const model = openai(
       hasReferenceImage
         ? "gpt-4o"
         : (process.env.OPENAI_MODEL ?? "gpt-4o-mini"),
     );
 
+    // --- 5. Outils IA ---
     const tools = {
+      /**
+       * Vérifie si des dates souhaitées par le client sont disponibles.
+       * Retourne pour chaque date : available (bool) + reason si bloquée.
+       */
       check_preferred_dates: tool({
         description:
           "Vérifie si des dates souhaitées sont bloquées ou sans horaire de travail.",
@@ -187,24 +296,18 @@ export async function POST(
         }),
         execute: async ({ dates }) =>
           safeToolExecute("check_preferred_dates", async () => {
-            const ctx = await loadAvailabilitySafe(
-              proUserId,
-              rangeStart,
-              rangeEnd,
-            );
-            const normalized = dates
-              .map((d) => d.trim())
-              .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
-            const unparsed = dates
-              .map((d) => d.trim())
-              .filter((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d));
+            const ctx = await loadAvailabilitySafe(proUserId, rangeStart, rangeEnd);
+            const normalized = dates.map((d) => d.trim()).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+            const unparsed   = dates.map((d) => d.trim()).filter((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d));
             const result = checkPreferredDates(normalized, ctx);
-            return {
-              ...result,
-              unparsed_dates: [...result.unparsed_dates, ...unparsed],
-            };
+            return { ...result, unparsed_dates: [...result.unparsed_dates, ...unparsed] };
           }),
       }),
+
+      /**
+       * Propose 3 créneaux disponibles adaptés au style et à la taille du projet.
+       * Tient compte des dates préférées du client si fournies.
+       */
       propose_available_slots: tool({
         description:
           "Propose 3 créneaux disponibles selon style, taille et dates préférées.",
@@ -212,15 +315,15 @@ export async function POST(
           style: z.string(),
           size: z.string(),
           preferred_dates: z.array(z.string()).optional(),
+          time_preference: z.enum(["morning", "afternoon", "any"]).optional(),
         }),
-        execute: async ({ style, size, preferred_dates }) =>
+        execute: async ({ style, size, preferred_dates, time_preference }) =>
           safeToolExecute("propose_available_slots", async () => {
             const sizeCategory = parseSizeCategory(size);
-            const ctx = await loadAvailabilitySafe(
-              proUserId,
-              rangeStart,
-              rangeEnd,
-            );
+            const ctx = await loadAvailabilitySafe(proUserId, rangeStart, rangeEnd);
+            const pref = time_preference === "morning" || time_preference === "afternoon"
+              ? time_preference
+              : undefined;
             const slots = proposeAvailableSlots({
               ctx,
               style,
@@ -228,14 +331,16 @@ export async function POST(
               preferredDates: preferred_dates,
               count: 3,
               from: rangeStart,
+              timePreference: pref,
             });
-            return {
-              slots,
-              size_category: sizeCategory,
-              has_working_hours: ctx.schedules.length > 0,
-            };
+            return { slots, size_category: sizeCategory, has_working_hours: ctx.schedules.length > 0 };
           }),
       }),
+
+      /**
+       * Retourne TOUS les créneaux disponibles pour une journée précise.
+       * Utile quand le client demande une heure spécifique hors des 3 créneaux proposés.
+       */
       get_day_slots: tool({
         description:
           "Retourne TOUS les créneaux disponibles pour une date précise. À utiliser quand le client demande une heure spécifique non proposée parmi les 3 créneaux initiaux.",
@@ -247,22 +352,53 @@ export async function POST(
         execute: async ({ date, style, size }) =>
           safeToolExecute("get_day_slots", async () => {
             const sizeCategory = parseSizeCategory(size);
-            const ctx = await loadAvailabilitySafe(
-              proUserId,
-              rangeStart,
-              rangeEnd,
-            );
+            const ctx = await loadAvailabilitySafe(proUserId, rangeStart, rangeEnd);
             const dayDate = new Date(`${date}T12:00:00`);
             const duration = getDurationMinutes(ctx, style, sizeCategory);
             const allSlots = slotsForDay(dayDate, ctx, duration);
-            return {
-              date,
-              available_times: allSlots,
-              has_working_hours: ctx.schedules.length > 0,
-              total: allSlots.length,
-            };
+            return { date, available_times: allSlots, has_working_hours: ctx.schedules.length > 0, total: allSlots.length };
           }),
       }),
+
+      /**
+       * Estime le prix en temps réel à partir des tarifs configurés par le pro.
+       * À appeler juste après avoir collecté le budget du client (étape 7),
+       * pour comparer et avertir si le budget est en dessous de la fourchette.
+       */
+      get_price_estimate: tool({
+        description:
+          "Calcule une estimation de prix (min/max en €) selon style, taille et couleur, en utilisant les vrais tarifs du tatoueur. À appeler après avoir recueilli le budget du client pour vérifier s'il est suffisant.",
+        inputSchema: z.object({
+          style: z.string(),
+          size: z.string(),
+          color_preference: z.enum(["color", "black_and_grey", "undecided"]),
+        }),
+        execute: async ({ style, size, color_preference }) =>
+          safeToolExecute("get_price_estimate", async () => {
+            const admin = createAdminClient();
+            const { data: pricingRow } = await admin
+              .from("pro_pricing_settings")
+              .select("*")
+              .eq("user_id", proUserId)
+              .maybeSingle();
+            const estimate = estimatePrice(
+              { style, size },
+              pricingRow ?? null,
+              color_preference,
+            );
+            return { min: estimate.min, max: estimate.max };
+          }),
+      }),
+
+      /**
+       * Finalise le dossier client une fois toutes les informations collectées.
+       *
+       * Actions réalisées :
+       *   - Résout le créneau exact (vérifie qu'il est toujours disponible)
+       *   - Calcule l'acompte via computeProDepositEur
+       *   - Estime le prix avec les tarifs réels du pro (pro_pricing_settings)
+       *   - Retourne le récapitulatif complet affiché dans la BookingCard côté client
+       */
       complete_booking_intake: tool({
         description:
           "Finalise le dossier quand toutes les infos et le créneau sont connus.",
@@ -286,11 +422,9 @@ export async function POST(
         execute: async (input) =>
           safeToolExecute("complete_booking_intake", async () => {
             const size_category = parseSizeCategory(input.size);
-            const ctx = await loadAvailabilitySafe(
-              proUserId,
-              rangeStart,
-              rangeEnd,
-            );
+            const ctx = await loadAvailabilitySafe(proUserId, rangeStart, rangeEnd);
+
+            // Résoudre le créneau (vérification de disponibilité)
             const slots = proposeAvailableSlots({
               ctx,
               style: input.style,
@@ -307,26 +441,35 @@ export async function POST(
             const duration_minutes =
               resolved.duration_minutes ?? slots[0]?.duration_minutes ?? 90;
 
-            const price = estimatePrice({
-              style: input.style,
-              size: input.size,
-              bodyZone: input.zone,
-            });
-
             const admin = createAdminClient();
             const budgetEur =
-              parseBudgetEuros(input.budget) ??
-              Math.round(Number(input.budget));
+              parseBudgetEuros(input.budget) ?? Math.round(Number(input.budget));
 
-            const [{ data: depositRow, error: depositError }, deposit_amount] =
-              await Promise.all([
-                admin
-                  .from("pro_deposit_settings")
-                  .select("deposit_type, cancellation_policy, rules")
-                  .eq("user_id", proUserId)
-                  .maybeSingle(),
-                computeProDepositEur(admin, proUserId, budgetEur),
-              ]);
+            // Données financières : acompte + tarifs pro (en parallèle pour la performance)
+            const [
+              { data: depositRow, error: depositError },
+              deposit_amount,
+              { data: pricingRow },
+            ] = await Promise.all([
+              admin
+                .from("pro_deposit_settings")
+                .select("deposit_type, cancellation_policy, rules")
+                .eq("user_id", proUserId)
+                .maybeSingle(),
+              computeProDepositEur(admin, proUserId, budgetEur),
+              admin
+                .from("pro_pricing_settings")
+                .select("*")
+                .eq("user_id", proUserId)
+                .maybeSingle(),
+            ]);
+
+            // Estimation du prix avec les vrais tarifs du pro (ou fallback générique)
+            const price = estimatePrice(
+              { style: input.style, size: input.size, bodyZone: input.zone },
+              pricingRow ?? null,
+              input.color_preference,
+            );
 
             if (depositError) {
               console.error("[ink/chat] pro_deposit_settings", depositError.message);
@@ -366,8 +509,37 @@ export async function POST(
       }),
     };
 
-    const currentDateIso = new Date().toISOString();
-    const modelMessages = await convertToModelMessages(body.messages);
+    // --- 6. Appel streamText ---
+    const currentDateIso  = new Date().toISOString();
+    const modelMessages   = await convertToModelMessages(body.messages);
+
+    // Si une image de référence est passée via le body, l'injecter dans le dernier message utilisateur
+    if (body.referenceImageUrl) {
+      const lastUserIdx = modelMessages.findLastIndex((m) => m.role === "user");
+      if (lastUserIdx !== -1) {
+        const lastUser = modelMessages[lastUserIdx];
+        const textParts: Array<{ type: "text"; text: string }> =
+          typeof lastUser.content === "string"
+            ? [{ type: "text" as const, text: lastUser.content }]
+            : (lastUser.content as Array<{ type: string; text?: string }>)
+                .filter((p) => p.type === "text")
+                .map((p) => ({ type: "text" as const, text: p.text ?? "" }));
+        // Utiliser { type: "file", data: URL, mediaType } pour que le SDK passe l'URL
+        // directement à OpenAI (isUrlSupportedByModel=true) sans téléchargement intermédiaire.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (modelMessages as any)[lastUserIdx] = {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL(body.referenceImageUrl),
+              mediaType: "image/jpeg",
+            },
+            ...textParts,
+          ],
+        };
+      }
+    }
 
     const result = streamText({
       model,
@@ -378,7 +550,7 @@ export async function POST(
         hasReferenceImage,
       ),
       tools,
-      stopWhen: stepCountIs(12),
+      stopWhen: stepCountIs(14),   // max 14 appels d'outils par tour (étape préférence horaire ajoutée)
       timeout: OPENAI_TIMEOUT_MS,
       maxRetries: 2,
       messages: modelMessages,
@@ -391,15 +563,12 @@ export async function POST(
       originalMessages: body.messages,
       onError: (error) => {
         console.error("[ink/chat] stream response", error);
-        return error instanceof Error
-          ? error.message
-          : "Une erreur est survenue";
+        return error instanceof Error ? error.message : "Une erreur est survenue";
       },
     });
   } catch (err) {
     console.error("[ink/chat] POST", err);
-    const message =
-      err instanceof Error ? err.message : "Erreur serveur";
+    const message = err instanceof Error ? err.message : "Erreur serveur";
     return new Response(message, { status: 500 });
   }
 }

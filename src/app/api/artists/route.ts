@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Rate limit : 30 requêtes / min par IP (anti-scraping)
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(`artists:${ip}`, { limit: 30, windowSecs: 60 });
+  if (!rl.ok) return rateLimitResponse(rl);
+
   try {
     const admin = createAdminClient();
     const { data, error } = await admin

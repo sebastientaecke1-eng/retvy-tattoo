@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { prepareInkBooking } from "@/lib/pro/prepare-ink-booking";
 import { combineBookingDateTime } from "@/lib/pro/ink-booking";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 /** Valide le créneau et prépare les données (sans appel Stripe). */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  // Rate limit : 10 réservations / 10 min par IP (anti-spam)
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(`book:${ip}`, { limit: 10, windowSecs: 600 });
+  if (!rl.ok) return rateLimitResponse(rl);
+
   try {
     const { slug } = await params;
     const rawBody = await request.json();
