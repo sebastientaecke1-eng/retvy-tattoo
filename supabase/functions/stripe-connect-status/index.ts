@@ -89,6 +89,7 @@ Deno.serve(async (req) => {
       .from("pro_profiles")
       .select("stripe_account_id")
       .eq("user_id", userId)
+      .eq("is_sub_profile", false)
       .maybeSingle();
 
     if (profileError) {
