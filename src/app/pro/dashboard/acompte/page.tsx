@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { userHasProAccess } from "@/lib/auth";
 import { DepositSettingsForm } from "@/components/pro/deposit-settings-form";
 import { StripeConnectCard } from "@/components/pro/stripe-connect-card";
 import {
@@ -9,8 +8,8 @@ import {
   type DepositSettings,
 } from "@/lib/pro/deposit-settings";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { getUserCached, getUserProAccessCached, getActiveProfileCached } from "@/lib/supabase/request-cache";
 
 export default async function ProDashboardAcomptePage({
   searchParams,
@@ -18,22 +17,13 @@ export default async function ProDashboardAcomptePage({
   searchParams: Promise<{ connect?: string }>;
 }) {
   const params = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUserCached();
   if (!user) redirect("/connexion?next=/pro/dashboard/acompte");
 
   const admin = createAdminClient();
-  if (!(await userHasProAccess(admin, user.id))) {
-    redirect("/client/dashboard");
-  }
+  if (!(await getUserProAccessCached(user.id))) redirect("/client/dashboard");
 
-  const { data: profile } = await admin
-    .from("pro_profiles")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const profile = await getActiveProfileCached(user.id);
 
   if (!profile) {
     return (
@@ -49,7 +39,7 @@ export default async function ProDashboardAcomptePage({
   const { data: row } = await admin
     .from("pro_deposit_settings")
     .select("deposit_enabled, deposit_type, cancellation_policy, rules")
-    .eq("user_id", user.id)
+    .eq("user_id", profile.user_id)
     .maybeSingle();
 
   const initial: DepositSettings = row
@@ -63,8 +53,10 @@ export default async function ProDashboardAcomptePage({
     : DEFAULT_DEPOSIT_SETTINGS;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <p className="text-xs font-bold uppercase tracking-widest text-blue-500/80">Connexion paiement</p>
       <StripeConnectCard connectReturn={params.connect} />
+      <p className="text-xs font-bold uppercase tracking-widest text-blue-500/80">Règles d&apos;acompte</p>
       <DepositSettingsForm initial={initial} />
     </div>
   );
