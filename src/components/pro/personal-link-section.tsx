@@ -3,28 +3,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { Check, Copy, Download, ExternalLink, Gift, Users } from "lucide-react";
+import { Check, Copy, Download, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 type PersonalLinkSectionProps = {
   slug: string;
   studioSlug?: string;
-  referralCode?: string | null;
 };
 
 const appUrl = "https://retvy.fr";
 const QR_COLOR_DARK = "#0057FF";
 
-export function PersonalLinkSection({ slug, studioSlug, referralCode }: PersonalLinkSectionProps) {
+export function PersonalLinkSection({ slug, studioSlug }: PersonalLinkSectionProps) {
   // For multi-profile accounts with a studio slug, the main link is the studio page
   const publicUrl = studioSlug ? `${appUrl}/studio/${studioSlug}` : `${appUrl}/ink/${slug}`;
   const profileUrl = `${appUrl}/ink/${slug}`;
-  const referralLink = referralCode ? `${appUrl}/pro/inscription?ref=${referralCode}` : null;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
-  const [copiedReferral, setCopiedReferral] = useState(false);
   const [qrReady, setQrReady] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
 
@@ -92,16 +89,7 @@ export function PersonalLinkSection({ slug, studioSlug, referralCode }: Personal
     }
   }, [publicUrl]);
 
-  const handleCopyReferral = useCallback(async () => {
-    if (!referralLink) return;
-    try {
-      await navigator.clipboard.writeText(referralLink);
-      setCopiedReferral(true);
-      window.setTimeout(() => setCopiedReferral(false), 2000);
-    } catch {
-      setCopiedReferral(false);
-    }
-  }, [referralLink]);
+
 
   const handleDownloadQr = useCallback(async () => {
     try {
@@ -217,72 +205,6 @@ export function PersonalLinkSection({ slug, studioSlug, referralCode }: Personal
           </div>
         </CardContent>
       </Card>
-
-      {/* ── Section parrainage ─────────────────────────────────── */}
-      {referralCode && referralLink && (
-        <Card className="border-blue-200 dark:border-blue-900/50">
-          <CardContent className="pt-6 space-y-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
-                <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                  Parrainage
-                </p>
-                <p className="mt-0.5 text-sm text-zinc-500">
-                  Invitez un confrère — il bénéficie d&apos;un mois offert, vous aussi.
-                </p>
-              </div>
-            </div>
-
-            {/* Code */}
-            <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 px-4 py-3">
-              <p className="text-xs uppercase tracking-widest text-zinc-400 mb-1">
-                Votre code
-              </p>
-              <p className="font-mono text-2xl font-bold tracking-wider text-blue-600 dark:text-blue-400">
-                {referralCode}
-              </p>
-            </div>
-
-            {/* Lien */}
-            <div>
-              <p className="text-xs uppercase tracking-widest text-zinc-400 mb-2">
-                Lien de parrainage
-              </p>
-              <p className="break-all text-sm text-zinc-600 dark:text-zinc-400 mb-3">
-                {referralLink}
-              </p>
-              <Button type="button" variant="outline" onClick={() => void handleCopyReferral()}>
-                {copiedReferral ? (
-                  <>
-                    <Check className="h-4 w-4" />
-                    Lien copié !
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4" />
-                    Copier le lien
-                  </>
-                )}
-              </Button>
-            </div>
-
-            {/* Avantages */}
-            <div className="rounded-lg border border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20 px-4 py-3 space-y-1.5">
-              <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                <Gift className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                <span><strong>Vous</strong> : 1 mois offert dès que votre filleul souscrit</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                <Gift className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                <span><strong>Votre filleul</strong> : 1 mois gratuit en plus (promo ou abonnement normal)</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <Card>
         <CardContent className="space-y-4 pt-6">
