@@ -1,19 +1,17 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { userHasProAccess } from "@/lib/auth";
 import { getStudioProfiles } from "@/lib/pro/studio";
 import { getMaxArtists } from "@/lib/stripe/plans";
 import type { PlanTier } from "@/lib/stripe/plans";
 import { ArtistesClient } from "./artistes-client";
+import { getUserCached, getUserProAccessCached } from "@/lib/supabase/request-cache";
 
 export default async function ArtistesPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUserCached();
   if (!user) redirect("/connexion?next=/pro/dashboard/artistes");
 
   const admin = createAdminClient();
-  if (!(await userHasProAccess(admin, user.id))) redirect("/client/dashboard");
+  if (!(await getUserProAccessCached(user.id))) redirect("/client/dashboard");
 
   const profiles = await getStudioProfiles(admin, user.id);
 
@@ -24,7 +22,7 @@ export default async function ArtistesPage() {
     .eq("is_sub_profile", false)
     .maybeSingle();
 
-  const tier: PlanTier = (subData?.subscription_tier as PlanTier | null | undefined) ?? "1";
+  const tier: PlanTier = (subData?.subscription_tier as PlanTier | null | undefined) ?? "free";
   const maxArtists = getMaxArtists(tier);
 
   return (

@@ -13,7 +13,7 @@ const CATEGORIES: { id: HygieneCategory; label: string; color: string }[] = [
   { id: "autoclave", label: "Autoclave", color: "text-emerald-400 bg-emerald-950/40 border-emerald-800/50" },
   { id: "desinfection", label: "Desinfection", color: "text-blue-400 bg-blue-950/40 border-blue-800/50" },
   { id: "materiel", label: "Materiel", color: "text-amber-400 bg-amber-950/40 border-amber-800/50" },
-  { id: "autre", label: "Autre", color: "text-zinc-400 bg-zinc-800/60 border-zinc-700" },
+  { id: "autre", label: "Autre", color: "text-zinc-400 bg-gray-100/60 dark:bg-zinc-800/60 border-zinc-300 dark:border-zinc-700" },
 ];
 
 function statusOf(record: ProHygieneRecordRow): "ok" | "expiring" | "expired" {
@@ -109,7 +109,7 @@ export function HygieneSection({
 
   if (!canHygiene) {
     return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 p-5">
         <div className="flex items-center gap-2 mb-3">
           <ShieldCheck className="h-5 w-5 text-zinc-600" />
           <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Suivi hygiene</h2>
@@ -127,7 +127,7 @@ export function HygieneSection({
   const expiring = records.filter((r) => statusOf(r) === "expiring");
 
   return (
-    <div className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+    <div className="space-y-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-emerald-400" />
@@ -155,14 +155,14 @@ export function HygieneSection({
 
       {/* Formulaire ajout */}
       {showForm && (
-        <div className="space-y-3 rounded-xl border border-zinc-700 bg-zinc-800/60 p-4">
+        <div className="space-y-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-gray-100/60 dark:bg-zinc-800/60 p-4">
           <div className="flex flex-wrap gap-1.5">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => setCategory(cat.id)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-all ${category === cat.id ? cat.color : "border-zinc-700 text-zinc-500 bg-transparent"}`}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-all ${category === cat.id ? cat.color : "border-zinc-300 dark:border-zinc-700 text-zinc-500 bg-transparent"}`}
               >
                 {cat.label}
               </button>
@@ -203,7 +203,7 @@ export function HygieneSection({
       {/* Liste */}
       {loading ? (
         <div className="space-y-2">
-          {[1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-zinc-800" />)}
+          {[1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-gray-100 dark:bg-zinc-800" />)}
         </div>
       ) : records.length === 0 ? (
         <p className="text-center text-xs text-zinc-600 py-4">Aucun enregistrement. Ajoutez votre premiere entree hygiene.</p>
@@ -213,17 +213,17 @@ export function HygieneSection({
             const cat = CATEGORIES.find((c) => c.id === r.category);
             const st = statusOf(r);
             return (
-              <div key={r.id} className="flex items-start gap-3 rounded-xl border border-zinc-800 bg-zinc-800/40 px-3 py-2.5">
+              <div key={r.id} className="flex items-start gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-gray-100/40 dark:bg-zinc-800/40 px-3 py-2.5">
                 <div className="mt-0.5 flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cat?.color ?? "border-zinc-700 text-zinc-500"}`}>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cat?.color ?? "border-zinc-300 dark:border-zinc-700 text-zinc-500"}`}>
                       {cat?.label ?? r.category}
                     </span>
                     {st === "expired" && <AlertCircle className="h-3.5 w-3.5 text-red-400" />}
                     {st === "expiring" && <Clock className="h-3.5 w-3.5 text-amber-400" />}
                     {st === "ok" && r.expires_at && <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />}
                   </div>
-                  <p className="mt-1 text-sm font-medium text-zinc-200 truncate">{r.label}</p>
+                  <p className="mt-1 text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">{r.label}</p>
                   <p className="text-[10px] text-zinc-500">
                     {new Date(r.completed_at).toLocaleDateString("fr-FR")}
                     {r.expires_at && ` · exp. ${new Date(r.expires_at).toLocaleDateString("fr-FR")}`}
@@ -239,7 +239,7 @@ export function HygieneSection({
       )}
 
       {/* Badge hygiène public (Premium) */}
-      <div className="border-t border-zinc-800 pt-4">
+      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -259,7 +259,7 @@ export function HygieneSection({
               type="button"
               onClick={toggleStamp}
               disabled={stampSaving}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors ${stampEnabled ? "bg-[#0057FF]" : "bg-zinc-700"}`}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors ${stampEnabled ? "bg-[#0057FF]" : "bg-gray-200 dark:bg-zinc-700"}`}
             >
               <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform ${stampEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
             </button>

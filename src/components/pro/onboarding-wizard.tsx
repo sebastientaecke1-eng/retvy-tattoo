@@ -65,16 +65,16 @@ type EstablishSessionResult = {
 };
 
 /* ─── Tarifs ─────────────────────────────────────────────────── */
-const TIER_LABELS: Record<PlanTier, { short: string; long: string }> = {
-  "1":     { short: "1",     long: "1 tatoueur" },
-  "23":    { short: "2 – 3", long: "2 – 3 tatoueurs" },
-  "3plus": { short: "3+",    long: "3+ tatoueurs" },
+const TIER_LABELS: Record<Exclude<PlanTier, "free">, { short: string; long: string }> = {
+  "starter": { short: "Starter", long: "Starter — 22 €/mois" },
+  "pro":     { short: "Pro",     long: "Pro — 27 €/mois" },
+  "premium": { short: "Premium", long: "Premium — 30 €/mois" },
 };
 
-const MONTHLY_PRICES: Record<PlanTier, number> = { "1": 30, "23": 60, "3plus": 90 };
-const ANNUAL_PRICES:  Record<PlanTier, number> = { "1": 300, "23": 600, "3plus": 900 };
+const MONTHLY_PRICES: Record<Exclude<PlanTier, "free">, number> = { starter: 22, pro: 27, premium: 30 };
+const ANNUAL_PRICES:  Record<Exclude<PlanTier, "free">, number> = { starter: 220, pro: 270, premium: 300 };
 
-function getPrice(tier: PlanTier, billing: PlanBilling) {
+function getPrice(tier: Exclude<PlanTier, "free">, billing: PlanBilling) {
   return billing === "monthly" ? MONTHLY_PRICES[tier] : ANNUAL_PRICES[tier];
 }
 
@@ -115,8 +115,9 @@ export function OnboardingWizard() {
   const [draftPersistReady, setDraftPersistReady] = useState(false);
 
   // ── Abonnement state ──
-  const [selectedTier, setSelectedTier] = useState<PlanTier>("1");
+  const [selectedTier, setSelectedTier] = useState<PlanTier>("premium");
   const [selectedBilling, setSelectedBilling] = useState<PlanBilling>("monthly");
+  const [multiArtists, setMultiArtists] = useState<"none" | "small" | "large">("none");
   /** null = pas encore choisi, true = promo, false = tarif normal */
   const [promoChoice, setPromoChoice] = useState<boolean | null>(null);
   const [referralCode, setReferralCode] = useState("");
@@ -178,6 +179,16 @@ export function OnboardingWizard() {
       setSlugTouched(draft.slugTouched);
       setEmailPending(draft.emailPending);
       setEmailConfirmed(draft.emailConfirmed);
+    }
+
+    // Pré-remplir le tier et billing depuis l'URL (?tier=pro&billing=annual)
+    const tierParam = searchParams.get("tier");
+    if (tierParam && ["starter", "pro", "premium"].includes(tierParam)) {
+      setSelectedTier(tierParam as PlanTier);
+    }
+    const billingParam = searchParams.get("billing");
+    if (billingParam === "annual" || billingParam === "monthly") {
+      setSelectedBilling(billingParam as import("@/lib/stripe/plans").PlanBilling);
     }
 
     // Pré-remplir le code de parrainage depuis l'URL ?ref=
@@ -559,7 +570,7 @@ export function OnboardingWizard() {
         body: JSON.stringify({
           tier: selectedTier,
           billing: selectedBilling,
-          promo: wantsPromo,
+          multiArtists: multiArtists !== "none" ? multiArtists : undefined,
           email: checkoutEmail,
           name: checkoutName,
           userId: session.user.id,
@@ -705,8 +716,14 @@ export function OnboardingWizard() {
 
   /* ─── Render step 4 : sélecteur plan + promo ─────────────── */
   function renderSubscriptionStep() {
-    const price = getPrice(selectedTier, selectedBilling);
     const isAnnual = selectedBilling === "annual";
+
+    /* Calcul du prix total */
+    const basePrice = selectedTier === "free"
+      ? 0
+      : (isAnnual ? ANNUAL_PRICES[selectedTier as Exclude<PlanTier, "free">] : MONTHLY_PRICES[selectedTier as Exclude<PlanTier, "free">]);
+    const addonPrice = multiArtists === "small" ? 30 : multiArtists === "large" ? 60 : 0;
+    const totalPrice = basePrice + addonPrice;
 
     if (abonnementNeedsReconnect) {
       return (
@@ -721,163 +738,294 @@ export function OnboardingWizard() {
       );
     }
 
-    /* Étape A : choix du plan */
-    if (promoChoice === null) {
+    if (promoChoice !== null) {
       return (
-        <div className="space-y-5">
-          {/* Toggle mensuel / annuel */}
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">Facturation</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(["monthly", "annual"] as const).map((b) => (
-                <button
-                  key={b}
-                  type="button"
-                  onClick={() => setSelectedBilling(b)}
-                  className={`rounded-xl border px-4 py-3 text-sm font-medium text-left transition-colors ${
-                    selectedBilling === b
-                      ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                      : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500"
-                  }`}
-                >
-                  {b === "monthly" ? (
-                    "Mensuel"
-                  ) : (
-                    <>
-                      Annuel
-                      <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-                        2 mois offerts
-                      </span>
-                    </>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Sélecteur tatoueurs */}
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">Nombre de tatoueurs</p>
-            <div className="grid grid-cols-3 gap-2">
-              {(["1", "23", "3plus"] as PlanTier[]).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setSelectedTier(t)}
-                  className={`rounded-xl border px-3 py-3 text-center transition-colors ${
-                    selectedTier === t
-                      ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                      : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500"
-                  }`}
-                >
-                  <span className="block text-lg font-bold">{TIER_LABELS[t].short}</span>
-                  <span className="mt-0.5 block text-[11px] text-zinc-500">tatoueur{t !== "1" ? "s" : ""}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Affichage prix */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-5 py-4">
-            <div className="flex items-baseline gap-1">
-              <span className="text-[40px] font-bold tabular-nums leading-none">{price}</span>
-              <span className="text-lg font-semibold text-zinc-400"> €</span>
-              <span className="ml-1 text-sm text-zinc-500">/ {isAnnual ? "an" : "mois"}</span>
-            </div>
-            <p className="mt-1 text-xs text-zinc-600">
-              {isAnnual
-                ? `${Math.round(price / 10)} €/mois · 2 mois offerts — sans engagement`
-                : "Sans engagement · résiliable à tout moment"}
-            </p>
-          </div>
-
-          {/* Carte promo optionnelle */}
-          <div className="rounded-xl border border-blue-900/60 bg-blue-950/30 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-base">✦</span>
-                <span className="text-sm font-semibold text-blue-200">Offre nouveaux inscrits</span>
-              </div>
-              <span className="rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                ⭐ Recommandé
-              </span>
-            </div>
-            <p className="mb-3 text-[13px] text-blue-300/80 leading-relaxed">
-              Profitez de vos <strong className="text-blue-200">3 premiers mois à 60 €</strong> — quel que soit le plan choisi.{" "}
-              Pas d&apos;obligation : vous pouvez commencer directement au tarif normal si vous préférez.
-            </p>
-            {/* Champ code de parrainage */}
-            <div className="mt-1 mb-3">
-              <label className="block text-xs font-medium text-zinc-400 uppercase tracking-widest mb-1.5">
-                Code de parrainage <span className="normal-case text-zinc-500 font-normal">(optionnel)</span>
-              </label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  value={referralCode}
-                  onChange={(e) => {
-                    const v = e.target.value.toUpperCase().slice(0, 12);
-                    setReferralCode(v);
-                    setReferralValid(null);
-                  }}
-                  onBlur={() => void validateReferralCodeInput(referralCode)}
-                  placeholder="Ex : AB3XK7PQ"
-                  maxLength={12}
-                  className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm font-mono tracking-wider text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                {referralChecking && (
-                  <span className="text-xs text-zinc-500">Vérification…</span>
-                )}
-                {!referralChecking && referralValid === true && (
-                  <span className="text-xs text-green-400 font-medium">✓ Code valide — 1 mois offert</span>
-                )}
-                {!referralChecking && referralValid === false && referralCode.length > 0 && (
-                  <span className="text-xs text-red-400">Code invalide</span>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => { setPromoChoice(true); void startCheckout(true); }}
-                disabled={loading}
-                className="relative overflow-hidden rounded-lg bg-blue-600 px-3 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
-              >
-                <span className="absolute inset-x-0 top-0 bg-blue-900/70 py-0.5 text-[9px] font-bold uppercase tracking-widest text-blue-300">
-                  ✦ Notre recommandation
-                </span>
-                <span className="mt-3 block">
-                  {loading && promoChoice === true ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Commencer avec l'offre · 60 €"}
-                </span>
-                <span className="block text-[10px] font-normal opacity-75">Idéal pour découvrir la plateforme</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setPromoChoice(false); void startCheckout(false); }}
-                disabled={loading}
-                className="rounded-lg border border-blue-800/60 px-3 py-2.5 text-center text-sm font-medium text-blue-300 transition-colors hover:bg-blue-900/30 disabled:opacity-60"
-              >
-                {loading && promoChoice === false ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Tarif normal dès maintenant"}
-              </button>
-            </div>
-          </div>
-
-          <Button type="button" variant="ghost" className="w-full" onClick={() => goToStep(5)} disabled={loading}>
-            Passer cette étape →
-          </Button>
+        <div className="flex flex-col items-center gap-4 py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+          <p className="text-sm text-zinc-400">Redirection vers le paiement sécurisé…</p>
         </div>
       );
     }
 
-    /* Étape B : en cours de redirection → spinner */
+    /* ── Données des plans ── */
+    const plans: Array<{
+      tier: PlanTier;
+      label: string;
+      price: number;
+      badge?: string;
+      features: Array<{ text: string; included: boolean }>;
+    }> = [
+      {
+        tier: "free",
+        label: "Gratuit",
+        price: 0,
+        features: [
+          { text: "Profil public basique", included: true },
+          { text: "Suivi clients", included: true },
+          { text: "Suivi matériel", included: true },
+          { text: "IA rédaction", included: false },
+          { text: "Stats avancées", included: false },
+          { text: "Zones tarifaires", included: false },
+          { text: "Bannière animée", included: false },
+        ],
+      },
+      {
+        tier: "starter",
+        label: "Starter",
+        price: isAnnual ? 220 : 22,
+        features: [
+          { text: "Profil public", included: true },
+          { text: "Suivi clients + matériel", included: true },
+          { text: "IA rédaction (GPT-3.5)", included: true },
+          { text: "Zones tarifaires", included: true },
+          { text: "Parrainage clients", included: true },
+          { text: "Stats avancées", included: false },
+          { text: "Bannière animée", included: false },
+        ],
+      },
+      {
+        tier: "pro",
+        label: "Pro",
+        price: isAnnual ? 270 : 27,
+        badge: "Populaire",
+        features: [
+          { text: "Profil public", included: true },
+          { text: "Suivi clients + matériel", included: true },
+          { text: "IA rédaction (GPT-4o mini)", included: true },
+          { text: "Zones tarifaires", included: true },
+          { text: "Parrainage clients", included: true },
+          { text: "Stats avancées", included: true },
+          { text: "Bannière animée", included: true },
+        ],
+      },
+      {
+        tier: "premium",
+        label: "Premium",
+        price: isAnnual ? 300 : 30,
+        badge: "✦ Recommandé",
+        features: [
+          { text: "Profil public", included: true },
+          { text: "Suivi clients + matériel", included: true },
+          { text: "IA rédaction (GPT-4o)", included: true },
+          { text: "Zones tarifaires", included: true },
+          { text: "Parrainage clients", included: true },
+          { text: "Stats avancées", included: true },
+          { text: "Bannière animée + tampon", included: true },
+        ],
+      },
+    ];
+
     return (
-      <div className="flex flex-col items-center gap-4 py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-        <p className="text-sm text-zinc-400">Redirection vers le paiement sécurisé…</p>
+      <div className="space-y-5">
+        {/* Toggle mensuel / annuel */}
+        <div className="grid grid-cols-2 gap-2">
+          {(["monthly", "annual"] as const).map((b) => (
+            <button
+              key={b}
+              type="button"
+              onClick={() => setSelectedBilling(b)}
+              className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                selectedBilling === b
+                  ? "border-blue-500 bg-blue-500/10 text-blue-300"
+                  : "border-zinc-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 text-zinc-400 hover:border-zinc-500"
+              }`}
+            >
+              {b === "monthly" ? (
+                "Mensuel"
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  Annuel
+                  <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-semibold text-blue-400">
+                    2 mois offerts
+                  </span>
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Cards des 4 plans */}
+        <div className="grid grid-cols-2 gap-2">
+          {plans.map((plan) => {
+            const isSelected = selectedTier === plan.tier;
+            const isFree = plan.tier === "free";
+            return (
+              <button
+                key={plan.tier}
+                type="button"
+                onClick={() => setSelectedTier(plan.tier)}
+                className={`relative rounded-xl border p-3 text-left transition-all ${
+                  isSelected
+                    ? "border-blue-500 bg-blue-500/10"
+                    : "border-zinc-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 hover:border-zinc-500"
+                }`}
+              >
+                {plan.badge && (
+                  <span className={`absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                    plan.tier === "premium"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-200 dark:bg-zinc-700 text-zinc-300"
+                  }`}>
+                    {plan.badge}
+                  </span>
+                )}
+                <div className="mb-2 mt-0.5">
+                  <span className={`text-sm font-bold ${isSelected ? "text-blue-200" : "text-zinc-700 dark:text-zinc-200"}`}>
+                    {plan.label}
+                  </span>
+                </div>
+                <div className="mb-2.5 flex items-baseline gap-1">
+                  <span className="text-xl font-bold tabular-nums leading-none">
+                    {isFree ? "0" : plan.price}
+                  </span>
+                  <span className="text-xs text-zinc-500">€{isAnnual && !isFree ? "/an" : "/mois"}</span>
+                </div>
+                <ul className="space-y-1">
+                  {plan.features.map((f, idx) => (
+                    <li key={idx} className={`flex items-start gap-1.5 text-[11px] leading-tight ${
+                      f.included ? "text-zinc-300" : "text-zinc-600 line-through"
+                    }`}>
+                      <span className={`mt-0.5 shrink-0 text-[10px] ${f.included ? "text-emerald-400" : "text-zinc-700"}`}>
+                        {f.included ? "✓" : "✕"}
+                      </span>
+                      {f.text}
+                    </li>
+                  ))}
+                </ul>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Add-on multi-artistes */}
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Option multi-tatoueurs <span className="font-normal normal-case text-zinc-600">(salon ou collectif)</span>
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {(["none", "small", "large"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setMultiArtists(opt)}
+                className={`rounded-xl border px-3 py-2.5 text-center text-xs font-medium transition-colors ${
+                  multiArtists === opt
+                    ? "border-blue-500 bg-blue-500/10 text-blue-300"
+                    : "border-zinc-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 text-zinc-400 hover:border-zinc-500"
+                }`}
+              >
+                {opt === "none" && (
+                  <>
+                    <span className="block font-semibold text-sm">Solo</span>
+                    <span className="text-[11px] text-zinc-500">1 tatoueur</span>
+                  </>
+                )}
+                {opt === "small" && (
+                  <>
+                    <span className="block font-semibold text-sm">+30 €</span>
+                    <span className="text-[11px] text-zinc-500">2–3 tatoueurs</span>
+                  </>
+                )}
+                {opt === "large" && (
+                  <>
+                    <span className="block font-semibold text-sm">+60 €</span>
+                    <span className="text-[11px] text-zinc-500">4+ tatoueurs</span>
+                  </>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Résumé du total */}
+        {selectedTier !== "free" && (
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3">
+            <div className="flex items-baseline justify-between">
+              <div>
+                <span className="text-[32px] font-bold tabular-nums leading-none">
+                  {isAnnual ? totalPrice : totalPrice}
+                </span>
+                <span className="ml-1 text-base text-zinc-400">€</span>
+                <span className="ml-1 text-sm text-zinc-500">/ {isAnnual ? "an" : "mois"}</span>
+              </div>
+              <div className="text-right text-xs text-zinc-500">
+                {multiArtists !== "none" && (
+                  <span className="block">
+                    {MONTHLY_PRICES[selectedTier as Exclude<PlanTier, "free">]} € + {addonPrice} € add-on
+                  </span>
+                )}
+                {isAnnual && (
+                  <span className="block text-blue-400">
+                    ≈ {Math.round(totalPrice / 10)} €/mois · 2 mois offerts
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Code de parrainage */}
+        <div>
+          <label className="block text-xs font-medium uppercase tracking-widest text-zinc-500 mb-1.5">
+            Code de parrainage <span className="normal-case font-normal text-zinc-600">(optionnel)</span>
+          </label>
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={referralCode}
+              onChange={(e) => {
+                const v = e.target.value.toUpperCase().slice(0, 12);
+                setReferralCode(v);
+                setReferralValid(null);
+              }}
+              onBlur={() => void validateReferralCodeInput(referralCode)}
+              placeholder="Ex : AB3XK7PQ"
+              maxLength={12}
+              className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 px-3 py-2 text-sm font-mono tracking-wider text-zinc-900 dark:text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            />
+            {referralChecking && <span className="text-xs text-zinc-500">Vérification…</span>}
+            {!referralChecking && referralValid === true && (
+              <span className="text-xs text-green-400 font-medium">✓ 1 mois offert</span>
+            )}
+            {!referralChecking && referralValid === false && referralCode.length > 0 && (
+              <span className="text-xs text-red-400">Code invalide</span>
+            )}
+          </div>
+        </div>
+
+        {/* Boutons CTA */}
+        {selectedTier === "free" ? (
+          <Button type="button" className="w-full" onClick={() => goToStep(5)} disabled={loading}>
+            Continuer gratuitement →
+          </Button>
+        ) : (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => { setPromoChoice(false); void startCheckout(false); }}
+              disabled={loading}
+              className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
+            >
+              {loading ? (
+                <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+              ) : (
+                `Passer au paiement · ${totalPrice} €/${isAnnual ? "an" : "mois"}`
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => goToStep(5)}
+              disabled={loading}
+              className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-300 disabled:opacity-60"
+            >
+              Passer cette étape →
+            </button>
+          </div>
+        )}
       </div>
     );
   }
+
 
   /* ─── Écran final ────────────────────────────────────────── */
   if (done) {
@@ -918,7 +1066,7 @@ export function OnboardingWizard() {
         <div className="flex gap-2">
           {STEPS.map((label, i) => (
             <div key={label} className={`flex flex-1 flex-col items-center gap-1 text-xs ${i <= step ? "text-blue-400" : "text-zinc-600"}`}>
-              <span className={`flex h-8 w-8 items-center justify-center rounded-full border ${i < step ? "border-blue-500 bg-blue-500/20" : i === step ? "border-blue-500" : "border-zinc-700"}`}>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full border ${i < step ? "border-blue-500 bg-blue-500/20" : i === step ? "border-blue-500" : "border-zinc-300 dark:border-zinc-700"}`}>
                 {i < step ? <Check className="h-4 w-4" /> : i + 1}
               </span>
               <span className="hidden sm:block">{label}</span>
@@ -994,7 +1142,7 @@ export function OnboardingWizard() {
 
         {step === 5 && (
           <div className="space-y-4">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-5">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5">
               <div className="flex gap-4">
                 <Banknote className="h-6 w-6 shrink-0 text-blue-400" />
                 <div>

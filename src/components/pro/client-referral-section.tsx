@@ -80,7 +80,7 @@ export function ClientReferralSection({ subscriptionTier = "free" }: { subscript
 
   if (!canUse) {
     return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 p-5">
         <div className="flex items-center gap-2 mb-3">
           <Heart className="h-5 w-5 text-zinc-600" />
           <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Parrainage clients</h2>
@@ -95,7 +95,7 @@ export function ClientReferralSection({ subscriptionTier = "free" }: { subscript
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-5">
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 p-5 space-y-5">
 
       {/* En-tête + toggle */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -109,7 +109,7 @@ export function ClientReferralSection({ subscriptionTier = "free" }: { subscript
             aria-checked={config.enabled}
             onClick={() => setConfig((c) => ({ ...c, enabled: !c.enabled }))}
             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors ${
-              config.enabled ? "bg-[#0057FF]" : "bg-zinc-700"
+              config.enabled ? "bg-[#0057FF]" : "bg-gray-200 dark:bg-zinc-700"
             }`}
           >
             <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform ${
@@ -120,18 +120,18 @@ export function ClientReferralSection({ subscriptionTier = "free" }: { subscript
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-800/40 p-3 text-center">
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-gray-100/40 dark:bg-zinc-800/40 p-3 text-center">
           <p className="text-2xl font-bold text-blue-400">{stats.total}</p>
           <p className="text-xs text-zinc-500">Parrainages</p>
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-800/40 p-3 text-center">
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-gray-100/40 dark:bg-zinc-800/40 p-3 text-center">
           <p className="text-2xl font-bold text-emerald-400">{stats.booked}</p>
           <p className="text-xs text-zinc-500">Convertis</p>
         </div>
       </div>
 
       {/* Explication */}
-      <div className="flex gap-2 rounded-lg border border-zinc-800 bg-zinc-800/30 px-3 py-2.5">
+      <div className="flex gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-gray-100/30 dark:bg-zinc-800/30 px-3 py-2.5">
         <Info className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
         <p className="text-xs text-zinc-400">
           Chaque client qui réserve avec vous reçoit un code unique à partager.
@@ -142,7 +142,7 @@ export function ClientReferralSection({ subscriptionTier = "free" }: { subscript
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-zinc-800" />)}
+          {[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-gray-100 dark:bg-zinc-800" />)}
         </div>
       ) : (
         <>
@@ -160,7 +160,7 @@ export function ClientReferralSection({ subscriptionTier = "free" }: { subscript
                   className={`rounded-xl border px-3 py-2.5 text-left text-xs transition-all ${
                     config.rewardFor === opt.value
                       ? "border-blue-500/60 bg-blue-950/30 text-blue-300"
-                      : "border-zinc-700 bg-zinc-800/30 text-zinc-400 hover:border-zinc-600"
+                      : "border-zinc-300 dark:border-zinc-700 bg-gray-100/30 dark:bg-zinc-800/30 text-zinc-400 hover:border-zinc-600"
                   }`}
                 >
                   <p className="font-semibold">{opt.label}</p>
@@ -178,7 +178,7 @@ export function ClientReferralSection({ subscriptionTier = "free" }: { subscript
                 Ce que gagne le parrain
               </p>
               <input
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Ex : 1 heure offerte sur sa prochaine séance"
                 value={config.referrerReward}
                 onChange={(e) => setConfig((c) => ({ ...c, referrerReward: e.target.value }))}
@@ -194,7 +194,7 @@ export function ClientReferralSection({ subscriptionTier = "free" }: { subscript
                 Ce que gagne le nouveau client
               </p>
               <input
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Ex : 10% de réduction sur votre premier RDV"
                 value={config.newClientReward}
                 onChange={(e) => setConfig((c) => ({ ...c, newClientReward: e.target.value }))}

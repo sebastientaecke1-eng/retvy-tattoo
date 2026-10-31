@@ -22,6 +22,9 @@ import { ProStylePicker } from "@/components/pro/pro-style-picker";
 import { ProAddressFields } from "@/components/pro/pro-address-fields";
 import { MAX_STUDIO_PHOTOS } from "@/lib/pro/studio";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { MusicSection } from "@/components/pro/music-section";
+import { BannerSection } from "@/components/pro/banner-section";
+import type { PlanTier } from "@/lib/stripe/plans";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -39,6 +42,7 @@ type Props = {
   initialProStyleIds: string[];
   styleCatalog: TattooStyleCatalog;
   canUseStudio?: boolean;
+  subscriptionTier?: PlanTier;
 };
 
 export function ProfileEditForm({
@@ -48,6 +52,7 @@ export function ProfileEditForm({
   initialProStyleIds,
   styleCatalog: styleCatalogProp,
   canUseStudio = false,
+  subscriptionTier = "free",
 }: Props) {
   const styleCatalog = useMemo(
     () => rebuildCatalogMaps(styleCatalogProp),
@@ -298,7 +303,7 @@ export function ProfileEditForm({
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-8">
+    <form onSubmit={handleSave} className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Mon profil</h1>
         <p className="mt-1 text-sm text-zinc-500">
@@ -319,9 +324,13 @@ export function ProfileEditForm({
         </p>
       )}
 
+      {/* ── Identité ── */}
+      <p className="text-xs font-bold uppercase tracking-widest text-blue-500/80">Identité</p>
+
+      {/* Photo de profil */}
       <Card>
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
             Photo de profil
           </p>
         </CardHeader>
@@ -364,9 +373,10 @@ export function ProfileEditForm({
         </CardContent>
       </Card>
 
+      {/* Informations artiste */}
       <Card>
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
             Informations
           </p>
         </CardHeader>
@@ -378,39 +388,6 @@ export function ProfileEditForm({
               required
             />
           </Field>
-          {canUseStudio && (
-            <Field label="Nom du studio">
-              <Input value={studio} onChange={(e) => {
-                setStudio(e.target.value);
-                // Auto-génère le studio_slug si le pro n'en a pas encore un
-                if (!studioSlug) {
-                  setStudioSlug(
-                    e.target.value
-                      .toLowerCase()
-                      .normalize("NFD").replace(/[̀-ͯ]/g, "")
-                      .replace(/[^a-z0-9]+/g, "-")
-                      .replace(/^-|-$/g, "")
-                  );
-                }
-              }} />
-            </Field>
-          )}
-          {canUseStudio && (
-            <Field label="URL du studio (pour Google)">
-              <div className="flex items-center gap-0 rounded-xl border border-zinc-300 dark:border-zinc-800 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500/60">
-                <span className="px-3 py-2.5 text-sm text-zinc-400 bg-zinc-100 dark:bg-zinc-900 shrink-0 border-r border-zinc-300 dark:border-zinc-800">/studio/</span>
-                <input
-                  value={studioSlug}
-                  onChange={(e) => setStudioSlug(
-                    e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/--+/g, "-")
-                  )}
-                  className="flex-1 px-3 py-2.5 text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none"
-                  placeholder="mon-studio-paris"
-                />
-              </div>
-              <p className="mt-1 text-xs text-zinc-400">Visible sur Google. Uniquement lettres minuscules, chiffres et tirets.</p>
-            </Field>
-          )}
           <Field label="Téléphone *">
             <Input
               value={phone}
@@ -441,80 +418,128 @@ export function ProfileEditForm({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
-              Photos du studio
-            </p>
-            <p className="mt-1 text-sm text-zinc-500">
-              Jusqu&apos;à {MAX_STUDIO_PHOTOS} photos visibles sur votre page /ink.
-            </p>
-          </div>
-          <label
-            className={
-              studioPhotos.length >= MAX_STUDIO_PHOTOS
-                ? "pointer-events-none inline-flex cursor-not-allowed items-center gap-2 text-sm text-zinc-600"
-                : "inline-flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
-            }
-          >
-            {studioUploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4" />
-            )}
-            Ajouter une photo
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              disabled={
-                studioUploading || studioPhotos.length >= MAX_STUDIO_PHOTOS
-              }
-              onChange={(ev) => {
-                const f = ev.target.files?.[0];
-                if (f) void uploadStudioPhoto(f);
-                ev.target.value = "";
-              }}
-            />
-          </label>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {studioPhotos.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-              {studioPhotos.map((photo) => (
-                <div
-                  key={photo.id}
-                  className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
-                >
-                  <Image
-                    src={photo.image_url}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="160px"
-                    unoptimized
+      {/* ── Mon studio ── */}
+      {canUseStudio && (
+        <>
+          <p className="text-xs font-bold uppercase tracking-widest text-blue-500/80">Mon studio</p>
+
+          <Card>
+            <CardHeader>
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                Informations du studio
+              </p>
+            </CardHeader>
+            <CardContent className="grid gap-4 pt-0 sm:grid-cols-2">
+              <Field label="Nom du studio">
+                <Input value={studio} onChange={(e) => {
+                  setStudio(e.target.value);
+                  if (!studioSlug) {
+                    setStudioSlug(
+                      e.target.value
+                        .toLowerCase()
+                        .normalize("NFD").replace(/[̀-ͯ]/g, "")
+                        .replace(/[^a-z0-9]+/g, "-")
+                        .replace(/^-|-$/g, "")
+                    );
+                  }
+                }} />
+              </Field>
+              <Field label="URL du studio (pour Google)">
+                <div className="flex items-center gap-0 rounded-xl border border-zinc-300 dark:border-zinc-800 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500/60">
+                  <span className="px-3 py-2.5 text-sm text-zinc-400 bg-zinc-100 dark:bg-zinc-900 shrink-0 border-r border-zinc-300 dark:border-zinc-800">/studio/</span>
+                  <input
+                    value={studioSlug}
+                    onChange={(e) => setStudioSlug(
+                      e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/--+/g, "-")
+                    )}
+                    className="flex-1 px-3 py-2.5 text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none"
+                    placeholder="mon-studio-paris"
                   />
-                  <button
-                    type="button"
-                    onClick={() => void removeStudioPhoto(photo.id)}
-                    className="absolute right-1 top-1 rounded-md bg-black/70 p-1.5 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100"
-                    aria-label="Supprimer"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-zinc-600">Aucune photo du studio.</p>
-          )}
-        </CardContent>
-      </Card>
+                <p className="mt-1 text-xs text-zinc-400">Visible sur Google. Uniquement lettres minuscules, chiffres et tirets.</p>
+              </Field>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                  Photos du studio
+                </p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  Jusqu&apos;à {MAX_STUDIO_PHOTOS} photos visibles sur votre page /ink.
+                </p>
+              </div>
+              <label
+                className={
+                  studioPhotos.length >= MAX_STUDIO_PHOTOS
+                    ? "pointer-events-none inline-flex cursor-not-allowed items-center gap-2 text-sm text-zinc-600"
+                    : "inline-flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
+                }
+              >
+                {studioUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                Ajouter une photo
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  disabled={
+                    studioUploading || studioPhotos.length >= MAX_STUDIO_PHOTOS
+                  }
+                  onChange={(ev) => {
+                    const f = ev.target.files?.[0];
+                    if (f) void uploadStudioPhoto(f);
+                    ev.target.value = "";
+                  }}
+                />
+              </label>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {studioPhotos.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+                  {studioPhotos.map((photo) => (
+                    <div
+                      key={photo.id}
+                      className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
+                    >
+                      <Image
+                        src={photo.image_url}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="160px"
+                        unoptimized
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void removeStudioPhoto(photo.id)}
+                        className="absolute right-1 top-1 rounded-md bg-black/70 p-1.5 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100"
+                        aria-label="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-600">Aucune photo du studio.</p>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* ── Mon art ── */}
+      <p className="text-xs font-bold uppercase tracking-widest text-blue-500/80">Mon art</p>
 
       <Card>
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
             Styles pratiqués
           </p>
         </CardHeader>
@@ -530,7 +555,7 @@ export function ProfileEditForm({
 
       <Card>
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
             Tarifs indicatifs (€)
           </p>
         </CardHeader>
@@ -558,7 +583,7 @@ export function ProfileEditForm({
 
       <Card>
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
             Portfolio par style
           </p>
           <p className="mt-1 text-sm text-zinc-500">
@@ -640,6 +665,20 @@ export function ProfileEditForm({
           })}
         </CardContent>
       </Card>
+
+      {/* ── Présence en ligne ── */}
+      <p className="text-xs font-bold uppercase tracking-widest text-blue-500/80">Présence en ligne</p>
+
+      <BannerSection
+        initialCoverUrl={initialProfile.cover_url ?? null}
+        initialBannerVideoUrl={initialProfile.banner_video_url ?? null}
+        subscriptionTier={subscriptionTier}
+      />
+
+      <MusicSection
+        initialMusicUrl={initialProfile.music_url ?? null}
+        subscriptionTier={subscriptionTier}
+      />
 
       <div className="flex justify-end pb-8">
         <Button type="submit" size="lg" disabled={saving}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { UserCircle, Plus, Loader2, ExternalLink, Settings } from "lucide-react";
+import { UserCircle, Plus, Loader2, LayoutDashboard, Settings } from "lucide-react";
 import { addArtistAction, switchProfile } from "@/app/actions/studio";
 import { useRouter } from "next/navigation";
 import type { StudioProfile } from "@/lib/pro/studio";
@@ -156,15 +156,16 @@ export function ArtistesClient({ profiles, maxArtists, canAdd }: Props) {
                     Gérer
                   </button>
                 )}
-                <a
-                  href={`/ink/${profile.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={async () => {
+                    await switchProfile(profile.id);
+                    window.open('/pro/dashboard', '_blank');
+                  }}
                   className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                  title="Voir le profil public"
+                  title="Voir le tableau de bord"
                 >
-                  <ExternalLink className="h-4 w-4" />
-                </a>
+                  <LayoutDashboard className="h-4 w-4" />
+                </button>
               </div>
             </div>
           ))

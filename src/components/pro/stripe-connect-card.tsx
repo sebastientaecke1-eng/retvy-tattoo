@@ -87,7 +87,7 @@ export function StripeConnectCard({ connectReturn }: Props) {
     (status?.charges_enabled !== true || !status?.account_id);
 
   return (
-    <Card className="border-zinc-800 bg-zinc-950/80">
+    <Card>
       <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-500/80">

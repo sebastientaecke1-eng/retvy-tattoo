@@ -1,19 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronDown, Users, Plus, Lock } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Pen,
+  Archive,
+  CreditCard,
+  DollarSign,
+  BarChart2,
+  User,
+  Link2,
+  ShieldCheck,
+  Heart,
+  Users,
+  Settings,
+  ChevronDown,
+  Plus,
+  Lock,
+} from "lucide-react";
 import { switchProfile } from "@/app/actions/studio";
 import type { StudioProfile } from "@/lib/pro/studio";
 
-function navClass(active: boolean, blocked = false) {
+function navItemClass(active: boolean, blocked = false) {
   if (blocked) {
-    return "flex items-center gap-2 rounded-lg px-3 py-2 text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-50";
+    return "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-50";
   }
   return active
-    ? "rounded-lg bg-zinc-100 px-3 py-2 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-200"
-    : "rounded-lg px-3 py-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-zinc-200";
+    ? "flex items-center gap-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-400"
+    : "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-zinc-200 transition-colors";
+}
+
+function PlanBadge({ label }: { label: string }) {
+  return (
+    <span className="ml-auto text-[10px] font-semibold tracking-wide rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 px-2 py-0.5">
+      {label}
+    </span>
+  );
+}
+
+function GroupLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-3 mb-0.5 px-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-600 select-none first:mt-0">
+      {children}
+    </p>
+  );
+}
+
+function Divider() {
+  return <div className="my-2 border-t border-zinc-100 dark:border-zinc-800" />;
 }
 
 interface ProDashboardNavProps {
@@ -32,36 +69,49 @@ export function ProDashboardNav({
   subscriptionStatus = "active",
 }: ProDashboardNavProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   const isBlocked = subscriptionStatus === "canceled" || subscriptionStatus === "canceling";
   const activeProfile = profiles.find((p) => p.id === activeProfileId) ?? profiles[0];
 
+  const is = (href: string) => pathname.startsWith(href);
+
   async function handleSwitch(profileId: string) {
     setOpen(false);
     await switchProfile(profileId);
-    router.refresh();
+    window.location.reload();
   }
 
-  function BlockedLink({ href, children }: { href: string; children: React.ReactNode }) {
+  function NavLink({
+    href,
+    icon: Icon,
+    children,
+    badge,
+  }: {
+    href: string;
+    icon: React.ElementType;
+    children: React.ReactNode;
+    badge?: string;
+  }) {
     if (isBlocked) {
       return (
-        <span className={navClass(false, true)} title="Abonnement résilié — accès limité">
+        <span className={navItemClass(false, true)} title="Abonnement résilié — accès limité">
           <Lock className="h-3.5 w-3.5 shrink-0" />
           {children}
         </span>
       );
     }
     return (
-      <Link href={href} className={navClass(pathname.startsWith(href))}>
+      <Link href={href} className={navItemClass(is(href))}>
+        <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" />
         {children}
+        {badge && <PlanBadge label={badge} />}
       </Link>
     );
   }
 
   return (
-    <nav className="mt-6 flex flex-col gap-1 text-sm">
+    <nav className="mt-6 flex flex-col gap-0.5 text-sm">
       {/* Bannière résiliation */}
       {isBlocked && (
         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-400">
@@ -71,7 +121,7 @@ export function ProDashboardNav({
         </div>
       )}
 
-      {/* Switcher de profil */}
+      {/* Switcher de profil (studio) */}
       {isStudio && profiles.length > 0 && !isBlocked && (
         <div className="mb-3 relative">
           <button
@@ -117,27 +167,57 @@ export function ProDashboardNav({
         </div>
       )}
 
-      <BlockedLink href="/pro/dashboard/reservations">Réservations</BlockedLink>
-      <BlockedLink href="/pro/dashboard/croquis">Croquis</BlockedLink>
-      <BlockedLink href="/pro/dashboard/disponibilites">Disponibilités</BlockedLink>
-      <BlockedLink href="/pro/dashboard/acompte">Acomptes</BlockedLink>
-      <BlockedLink href="/pro/dashboard/profil">Mon profil</BlockedLink>
-      <BlockedLink href="/pro/dashboard/lien">Mon lien</BlockedLink>
+      {/* ── Agenda ── */}
+      <GroupLabel>Agenda</GroupLabel>
+      <NavLink href="/pro/dashboard/reservations" icon={Calendar}>Réservations</NavLink>
+      <NavLink href="/pro/dashboard/disponibilites" icon={Clock}>Disponibilités</NavLink>
 
+      <Divider />
+
+      {/* ── Projets clients ── */}
+      <GroupLabel>Projets clients</GroupLabel>
+      <NavLink href="/pro/dashboard/croquis" icon={Pen}>Croquis</NavLink>
+      <NavLink href="/pro/dashboard/grands-projets" icon={Archive} badge="Premium">Grands projets</NavLink>
+      <NavLink href="/pro/dashboard/acompte" icon={CreditCard}>Acomptes</NavLink>
+
+      <Divider />
+
+      {/* ── Business ── */}
+      <GroupLabel>Business</GroupLabel>
+      <NavLink href="/pro/dashboard/finance" icon={DollarSign}>Finance</NavLink>
+      <NavLink href="/pro/dashboard/stats" icon={BarChart2}>Statistiques</NavLink>
+
+      <Divider />
+
+      {/* ── Mon profil ── */}
+      <GroupLabel>Mon profil</GroupLabel>
+      <NavLink href="/pro/dashboard/profil" icon={User}>Mon profil</NavLink>
+      <NavLink href="/pro/dashboard/lien" icon={Link2}>Mon lien</NavLink>
+      <NavLink href="/pro/dashboard/hygiene" icon={ShieldCheck} badge="Starter+">Hygiène</NavLink>
+
+      <Divider />
+
+      {/* ── Croissance ── */}
+      <GroupLabel>Croissance</GroupLabel>
+      <NavLink href="/pro/dashboard/parrainage" icon={Heart} badge="Pro+">Parrainage</NavLink>
+
+      {/* ── Équipe (studio seulement) ── */}
       {isStudio && (
-        <BlockedLink href="/pro/dashboard/artistes">
-          <span className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Artistes
-          </span>
-        </BlockedLink>
+        <>
+          <Divider />
+          <GroupLabel>Équipe</GroupLabel>
+          <NavLink href="/pro/dashboard/artistes" icon={Users} badge="Studio">Artistes</NavLink>
+        </>
       )}
+
+      <Divider />
 
       {/* Paramètres — toujours accessible */}
       <Link
         href="/pro/dashboard/parametres"
-        className={navClass(pathname.startsWith("/pro/dashboard/parametres"))}
+        className={navItemClass(is("/pro/dashboard/parametres"))}
       >
+        <Settings className="h-3.5 w-3.5 shrink-0 opacity-70" />
         Paramètres
       </Link>
     </nav>

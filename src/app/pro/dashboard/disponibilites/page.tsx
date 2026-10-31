@@ -1,28 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { userHasProAccess } from "@/lib/auth";
 import { AvailabilitiesForm } from "@/components/pro/availabilities-form";
 import {
-  fetchProStyleOptions,
+  fetchProStyleDurationTargets,
 } from "@/lib/pro/tattoo-style-catalog";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { resolveActiveProfile } from "@/lib/pro/active-profile";
+import { getUserCached, getUserProAccessCached, getActiveProfileCached } from "@/lib/supabase/request-cache";
 
 export default async function ProDashboardDisponibilitesPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUserCached();
   if (!user) redirect("/connexion?next=/pro/dashboard/disponibilites");
 
   const admin = createAdminClient();
-  if (!(await userHasProAccess(admin, user.id))) {
-    redirect("/client/dashboard");
-  }
+  if (!(await getUserProAccessCached(user.id))) redirect("/client/dashboard");
 
-  const profile = await resolveActiveProfile(admin, user.id);
+  const profile = await getActiveProfileCached(user.id);
 
   if (!profile) {
     return (
@@ -35,7 +28,8 @@ export default async function ProDashboardDisponibilitesPage() {
     );
   }
 
-  const [schedulesRes, blockedRes, durationsRes, proStyles] =
+  // Récupérer le lock 24H + données dispo en parallèle
+  const [schedulesRes, blockedRes, durationsRes, proStyles, proProfileRes] =
     await Promise.all([
       admin
         .from("pro_schedules")
@@ -54,15 +48,28 @@ export default async function ProDashboardDisponibilitesPage() {
           "style, size_category, duration_min_minutes, duration_max_minutes, duration_minutes",
         )
         .eq("profile_id", profile.id),
-      fetchProStyleOptions(admin, profile.id),
+      fetchProStyleDurationTargets(admin, profile.id),
+      admin
+        .from("pro_profiles")
+        .select("cancellation_24h_lock, subscription_tier")
+        .eq("user_id", user.id)
+        .eq("is_sub_profile", false)
+        .maybeSingle(),
     ]);
 
+  const cancellation24hLock = proProfileRes.data?.cancellation_24h_lock ?? false;
+  const subscriptionTier = (proProfileRes.data?.subscription_tier ?? "free") as import("@/lib/stripe/plans").PlanTier;
+
   return (
-    <AvailabilitiesForm
-      initialSchedules={schedulesRes.data ?? []}
-      initialBlocked={blockedRes.data ?? []}
-      initialDurations={durationsRes.data ?? []}
-      proStyles={proStyles}
-    />
+    <div className="space-y-6">
+      <AvailabilitiesForm
+        initialSchedules={schedulesRes.data ?? []}
+        initialBlocked={blockedRes.data ?? []}
+        initialDurations={durationsRes.data ?? []}
+        proStyles={proStyles}
+        subscriptionTier={subscriptionTier}
+        initialCancellation24hLock={cancellation24hLock}
+      />
+    </div>
   );
 }

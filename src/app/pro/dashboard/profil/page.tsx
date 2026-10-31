@@ -1,25 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { userHasProAccess } from "@/lib/auth";
 import { ProfileEditForm } from "@/components/pro/profile-edit-form";
 import {
   fetchProStyleIds,
   fetchTattooStyleCatalogAdmin,
 } from "@/lib/pro/tattoo-style-catalog";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { resolveActiveProfile } from "@/lib/pro/active-profile";
+import { getUserCached, getUserProAccessCached, getActiveProfileCached } from "@/lib/supabase/request-cache";
 
 export default async function ProDashboardProfilPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUserCached();
   if (!user) redirect("/connexion?next=/pro/dashboard/profil");
 
   const admin = createAdminClient();
-  if (!(await userHasProAccess(admin, user.id))) redirect("/client/dashboard");
+  if (!(await getUserProAccessCached(user.id))) redirect("/client/dashboard");
 
-  const profile = await resolveActiveProfile(admin, user.id);
+  const profile = await getActiveProfileCached(user.id);
 
   if (!profile) {
     return (
@@ -61,6 +58,7 @@ export default async function ProDashboardProfilPage() {
       initialProStyleIds={proStyleIds}
       styleCatalog={styleCatalog}
       canUseStudio={canUseStudio}
+      subscriptionTier={(profile.subscription_tier ?? "free") as import("@/lib/stripe/plans").PlanTier}
     />
   );
 }

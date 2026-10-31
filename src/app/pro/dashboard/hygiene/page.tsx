@@ -14,7 +14,7 @@ export default async function ProDashboardHygienePage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-8 min-h-screen dark:bg-zinc-950">
-      <h1 className="text-xl font-bold text-zinc-100">Hygiene & Conformite</h1>
+      <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Hygiene & Conformite</h1>
       <HygieneSection
         initialStampEnabled={stampEnabled}
         subscriptionTier={tier}

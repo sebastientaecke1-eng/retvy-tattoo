@@ -137,9 +137,9 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
 
   if (confirmedBookings.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-8 text-center">
-        <h1 className="text-2xl font-bold">Croquis &amp; validation</h1>
-        <p className="mt-2 text-zinc-400">
+      <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-950/80">
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Croquis &amp; validation</h1>
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
           Aucun RDV confirmé pour le moment.
         </p>
       </div>
@@ -149,7 +149,7 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Croquis &amp; validation</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Croquis &amp; validation</h1>
         <p className="mt-1 text-zinc-500">
           Uploadez un croquis, envoyez-le au client et suivez sa validation.
         </p>
@@ -160,7 +160,7 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
           <div>
             <label
               htmlFor="booking-select"
-              className="text-sm font-medium text-zinc-300"
+              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
               RDV confirmé
             </label>
@@ -172,7 +172,7 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
                 setError(null);
                 setSuccess(null);
               }}
-              className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-blue-500/50"
+              className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none focus:border-blue-500/50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
             >
               {confirmedBookings.map((booking) => (
                 <option key={booking.id} value={booking.id}>
@@ -184,14 +184,14 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
           </div>
 
           {selectedBooking && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4 text-sm">
-              <p className="font-medium text-zinc-100">
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <p className="font-medium text-zinc-900 dark:text-zinc-100">
                 {selectedBooking.client_name}
               </p>
-              <p className="mt-1 text-zinc-400">
+              <p className="mt-1 text-zinc-600 dark:text-zinc-400">
                 {formatBookingDate(selectedBooking.booking_date)}
               </p>
-              <p className="mt-2 text-zinc-300">
+              <p className="mt-2 text-zinc-700 dark:text-zinc-300">
                 {formatProjectSummary(selectedBooking)}
               </p>
               {selectedBooking.project_description && (
@@ -217,18 +217,18 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
 
           {selectedSketch?.client_comment && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm">
-              <p className="font-medium text-red-300">Commentaire du client</p>
-              <p className="mt-1 text-zinc-300">
+              <p className="font-medium text-red-700 dark:text-red-300">Commentaire du client</p>
+              <p className="mt-1 text-zinc-700 dark:text-zinc-300">
                 {selectedSketch.client_comment}
               </p>
             </div>
           )}
 
           <div className="space-y-3">
-            <p className="text-sm font-medium text-zinc-300">
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Upload du croquis
             </p>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-zinc-700 px-4 py-3 text-sm text-zinc-400 transition-colors hover:border-blue-500/50 hover:text-blue-400">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-zinc-600 transition-colors hover:border-blue-500/50 hover:text-blue-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:text-blue-400">
               {uploading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -251,13 +251,13 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
 
           {selectedSketch?.sketch_url && (
             <div className="space-y-3">
-              <p className="text-sm font-medium text-zinc-300">Aperçu</p>
+              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Aperçu</p>
               {isSketchImageUrl(selectedSketch.sketch_url) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={selectedSketch.sketch_url}
                   alt="Croquis"
-                  className="max-h-80 rounded-xl border border-zinc-800 object-contain"
+                  className="max-h-80 rounded-xl border border-zinc-200 object-contain dark:border-zinc-800"
                 />
               ) : (
                 <a
@@ -277,7 +277,7 @@ export function SketchesSection({ bookings, initialSketches }: Props) {
             <p className="text-sm text-red-400">{error}</p>
           )}
           {success && (
-            <p className="inline-flex items-center gap-2 text-sm text-emerald-400">
+            <p className="inline-flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
               <Check className="h-4 w-4" />
               {success}
             </p>

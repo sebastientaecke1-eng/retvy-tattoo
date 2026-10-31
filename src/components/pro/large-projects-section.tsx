@@ -84,7 +84,7 @@ function ProjectCard({ project, onUpdate }: { project: Project; onUpdate: (id: s
   const st = STATUS_LABELS[project.status] ?? STATUS_LABELS.in_progress;
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-800/30">
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-gray-100/30 dark:bg-zinc-800/30">
       <button
         type="button"
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
@@ -92,13 +92,13 @@ function ProjectCard({ project, onUpdate }: { project: Project; onUpdate: (id: s
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-sm text-zinc-100 truncate">{project.title}</span>
+            <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 truncate">{project.title}</span>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${st.color}`}>{st.label}</span>
           </div>
           <p className="mt-0.5 text-xs text-zinc-500">{project.client_name} · {done}/{total} séances</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-16 h-1.5 rounded-full bg-zinc-700 overflow-hidden">
+          <div className="w-16 h-1.5 rounded-full bg-gray-200 dark:bg-zinc-700 overflow-hidden">
             <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
           <span className="text-xs text-zinc-500">{pct}%</span>
@@ -107,7 +107,7 @@ function ProjectCard({ project, onUpdate }: { project: Project; onUpdate: (id: s
       </button>
 
       {open && (
-        <div className="border-t border-zinc-800 px-4 py-3 space-y-3">
+        <div className="border-t border-zinc-200 dark:border-zinc-800 px-4 py-3 space-y-3">
           {project.description && <p className="text-xs text-zinc-400">{project.description}</p>}
           <div className="space-y-1.5">
             {project.pro_large_project_sessions
@@ -117,12 +117,12 @@ function ProjectCard({ project, onUpdate }: { project: Project; onUpdate: (id: s
                   {SESSION_STATUS_ICON[s.status]}
                   <span className="text-zinc-400">Séance {s.session_number}</span>
                   {s.session_date && <span className="text-zinc-600">— {new Date(s.session_date).toLocaleDateString("fr-FR")}</span>}
-                  {s.zone && <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-500">{s.zone}</span>}
+                  {s.zone && <span className="rounded bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 text-zinc-500">{s.zone}</span>}
                 </div>
               ))}
           </div>
           {project.notes && (
-            <p className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-500">{project.notes}</p>
+            <p className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-500">{project.notes}</p>
           )}
           {project.status === "in_progress" && (
             <div className="flex gap-2 flex-wrap">
@@ -275,7 +275,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
 
   if (!canUse) {
     return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 p-5">
         <div className="flex items-center gap-2 mb-3">
           <Layers className="h-5 w-5 text-zinc-600" />
           <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Grands projets multi-séances</h2>
@@ -299,7 +299,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
     <div className="space-y-5">
 
       {/* ── Section configuration IA ─────────────────────────────────────── */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-5">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 p-5 space-y-5">
 
         {/* En-tête */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -315,7 +315,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
             aria-checked={config.enabled}
             onClick={() => setConfig((c) => ({ ...c, enabled: !c.enabled }))}
             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors ${
-              config.enabled ? "bg-[#0057FF]" : "bg-zinc-700"
+              config.enabled ? "bg-[#0057FF]" : "bg-gray-200 dark:bg-zinc-700"
             }`}
           >
             <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform ${
@@ -325,7 +325,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
         </div>
 
         {/* Explication */}
-        <div className="flex gap-2 rounded-lg border border-zinc-800 bg-zinc-800/30 px-3 py-2.5">
+        <div className="flex gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-gray-100/30 dark:bg-zinc-800/30 px-3 py-2.5">
           <Info className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
           <p className="text-xs text-zinc-400">
             Quand activé, l&apos;IA détecte dans le tchat qu&apos;un client souhaite un grand projet
@@ -336,7 +336,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
 
         {configLoading ? (
           <div className="space-y-2">
-            {[1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-zinc-800" />)}
+            {[1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-gray-100 dark:bg-zinc-800" />)}
           </div>
         ) : (
           <>
@@ -361,8 +361,8 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
                       setDragIdx(null); setOverIdx(null);
                     }}
                     onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-                    className={`rounded-xl border bg-zinc-800/40 p-3 transition-all ${
-                      overIdx === idx ? "border-blue-500/60" : "border-zinc-700"
+                    className={`rounded-xl border bg-gray-100/40 dark:bg-zinc-800/40 p-3 transition-all ${
+                      overIdx === idx ? "border-blue-500/60" : "border-zinc-300 dark:border-zinc-700"
                     }`}
                   >
                     <div className="flex items-start gap-2">
@@ -376,7 +376,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
                       <div className="flex-1 space-y-2 min-w-0">
                         <div className="flex gap-2 flex-wrap">
                           <input
-                            className="flex-1 min-w-[140px] rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="flex-1 min-w-[140px] rounded-lg border border-zinc-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
                             placeholder="Nom de l'étape (ex: Tracé)"
                             value={stage.label}
                             onChange={(e) => updateStage(stage.id, "label", e.target.value)}
@@ -387,7 +387,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
                               min={0.5}
                               max={12}
                               step={0.5}
-                              className="w-16 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-16 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
                               value={stage.durationHours}
                               onChange={(e) => updateStage(stage.id, "durationHours", parseFloat(e.target.value) || 1)}
                             />
@@ -395,7 +395,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
                           </div>
                         </div>
                         <input
-                          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           placeholder="Notes pour l'IA (optionnel)"
                           value={stage.notes}
                           onChange={(e) => updateStage(stage.id, "notes", e.target.value)}
@@ -419,7 +419,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
               <button
                 type="button"
                 onClick={addStage}
-                className="mt-1 flex items-center gap-1.5 rounded-lg border border-dashed border-zinc-700 px-3 py-2 text-xs text-zinc-500 hover:border-blue-500/60 hover:text-blue-400 transition-colors w-full justify-center"
+                className="mt-1 flex items-center gap-1.5 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 px-3 py-2 text-xs text-zinc-500 hover:border-blue-500/60 hover:text-blue-400 transition-colors w-full justify-center"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Ajouter une étape
@@ -436,7 +436,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
                   type="number"
                   min={1}
                   max={52}
-                  className="w-16 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-16 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={config.defaultMinGapWeeks}
                   onChange={(e) =>
                     setConfig((c) => ({ ...c, defaultMinGapWeeks: parseInt(e.target.value) || 4 }))
@@ -456,7 +456,7 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
                 Précisez comment l&apos;IA doit gérer vos grands projets (style, contraintes, formulations…)
               </p>
               <textarea
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
                 placeholder="Ex : Toujours proposer un premier RDV de consultation gratuit avant de planifier les séances. Prévenir le client que les grands projets nécessitent de la patience..."
                 rows={4}
                 value={config.aiInstructions}
@@ -484,14 +484,14 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
       </div>
 
       {/* ── Section projets détectés ─────────────────────────────────────── */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Layers className="h-5 w-5 text-zinc-400" />
           <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
             Grands projets détectés par l&apos;IA
           </h2>
           {projects.length > 0 && (
-            <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
+            <span className="rounded-full bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
               {active.length} actif{active.length > 1 ? "s" : ""}
             </span>
           )}
@@ -499,10 +499,10 @@ export function LargeProjectsSection({ subscriptionTier = "free" }: { subscripti
 
         {projectsLoading ? (
           <div className="space-y-2">
-            {[1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-zinc-800" />)}
+            {[1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-gray-100 dark:bg-zinc-800" />)}
           </div>
         ) : projects.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-800 px-4 py-6 text-center">
+          <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 px-4 py-6 text-center">
             <Bot className="h-8 w-8 text-zinc-700 mx-auto mb-2" />
             <p className="text-sm text-zinc-600">Aucun grand projet détecté pour l&apos;instant.</p>
             <p className="text-xs text-zinc-700 mt-1">
