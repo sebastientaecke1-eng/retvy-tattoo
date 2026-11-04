@@ -872,6 +872,42 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      client_health_profiles: {
+        Row: {
+          id: string;
+          user_id: string;
+          height_cm: number | null;
+          weight_kg: number | null;
+          birth_year: number | null;
+          has_conditions: boolean;
+          conditions_note: string | null;
+          updated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          height_cm?: number | null;
+          weight_kg?: number | null;
+          birth_year?: number | null;
+          has_conditions?: boolean;
+          conditions_note?: string | null;
+          updated_at?: string;
+          created_at?: string;
+        };
+        Update: Partial<{
+          id: string;
+          user_id: string;
+          height_cm: number | null;
+          weight_kg: number | null;
+          birth_year: number | null;
+          has_conditions: boolean;
+          conditions_note: string | null;
+          updated_at: string;
+          created_at: string;
+        }>;
+        Relationships: [];
+      };
     };
     Views: {
       pro_profiles_public: {
