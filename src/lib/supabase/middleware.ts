@@ -34,6 +34,25 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+
+  // Redirection admin (sauf si mode "voir comme pro" activé)
+  const ADMIN_EMAIL = "sebastientaecke1@gmail.com";
+  const viewAsPro = request.cookies.get("retvy_view_as_pro")?.value === "true";
+  const viewAsClient = request.cookies.get("retvy_view_as_client")?.value === "true";
+
+  if (user && user.email === ADMIN_EMAIL && !viewAsPro && !viewAsClient) {
+    if (!path.startsWith("/admin") && !path.startsWith("/api")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin";
+      return NextResponse.redirect(url);
+    }
+  }
+  if (path.startsWith("/admin") && (!user || user.email !== ADMIN_EMAIL)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/connexion";
+    return NextResponse.redirect(url);
+  }
+
   const isProtected =
     path.startsWith("/pro/dashboard") || path.startsWith("/client/dashboard");
 
@@ -54,7 +73,7 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    if (path.startsWith("/client/dashboard") && hasPro) {
+    if (path.startsWith("/client/dashboard") && hasPro && !viewAsClient) {
       const url = request.nextUrl.clone();
       url.pathname = "/pro/dashboard";
       return NextResponse.redirect(url);
