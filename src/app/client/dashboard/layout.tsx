@@ -32,7 +32,7 @@ export default async function ClientDashboardLayout({
         <div className="sticky top-0 z-50 flex items-center justify-between gap-3 bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950">
           <span>👁 Mode aperçu — vue client</span>
           <a
-            href="/api/admin/view-as-client?action=exit"
+            href="/admin?exit_client_view=1"
             className="rounded-full bg-emerald-950/20 px-3 py-1 text-xs font-bold hover:bg-emerald-950/30 transition-colors"
           >
             ← Retour admin
