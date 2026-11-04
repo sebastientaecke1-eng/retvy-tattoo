@@ -282,16 +282,14 @@ export default function AdminPage() {
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-amber-400 hover:bg-amber-500/10 transition-colors">
             <Zap className="h-4 w-4" /> Voir comme pro
           </a>
-          {myProfile?.slug && (
-            <a
-              href={`/ink/${myProfile.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-            >
-              <Eye className="h-4 w-4" /> Voir comme client
-            </a>
-          )}
+          <a
+            href={myProfile?.slug ? `/ink/${myProfile.slug}` : "/ink/retvy"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+          >
+            <Eye className="h-4 w-4" /> Voir comme client
+          </a>
         </nav>
         {/* ── Mon plan test ── */}
         {myProfile && (
