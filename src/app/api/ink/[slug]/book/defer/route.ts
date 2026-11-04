@@ -5,6 +5,7 @@ import {
 } from "@/lib/pro/prepare-ink-booking";
 import { fulfillPendingBooking } from "@/lib/pro/persist-booking";
 import { resolveRequestUser } from "@/lib/supabase/resolve-request-user";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /** Réservation sans paiement immédiat — notifie le pro. */
 export async function POST(
@@ -46,7 +47,7 @@ export async function POST(
       reference: meta.reference,
     });
 
-    await fulfillPendingBooking(
+    const bookingId = await fulfillPendingBooking(
       {
         pro_user_id: meta.pro_user_id,
         artist_slug: meta.artist_slug,
@@ -72,6 +73,17 @@ export async function POST(
       },
       { logPrefix: "[book/defer]" },
     );
+
+    // Lier le consentement électronique à la réservation créée
+    const consentId = typeof rawBody.consent_id === "string" ? rawBody.consent_id : null;
+    if (consentId && bookingId) {
+      const admin = createAdminClient();
+      await admin
+        .from("booking_consents")
+        .update({ booking_id: bookingId })
+        .eq("id", consentId)
+        .is("booking_id", null); // sécurité : ne pas réécrire si déjà lié
+    }
 
     return NextResponse.json({
       ok: true,

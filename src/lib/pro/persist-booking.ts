@@ -8,10 +8,12 @@ import { combineBookingDateTime } from "@/lib/pro/ink-booking";
 import type { CancellationPolicy } from "@/lib/pro/deposit-settings";
 import type { BookingPaymentRefs } from "@/lib/stripe/booking-payment-refs";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { insertSketchMessage } from "@/lib/sketch/message-store";
 
 export type BookingMetadata = {
   booking_id?: string;
   pro_user_id: string;
+  pro_profile_id?: string;
   artist_slug?: string;
   artist_name?: string;
   artist_studio?: string;
@@ -53,11 +55,15 @@ export async function buildBookingEmailPayload(
   const admin = createAdminClient();
   let studioAddress = meta.artist_studio ?? "";
 
-  const { data: pro } = await admin
+  let proQuery = admin
     .from("pro_profiles")
-    .select("user_id, artist_name, address, studio, city, postal_code")
-    .eq("user_id", meta.pro_user_id)
-    .maybeSingle();
+    .select("id, user_id, artist_name, address, studio, city, postal_code");
+  if (meta.pro_profile_id) {
+    proQuery = proQuery.eq("id", meta.pro_profile_id) as typeof proQuery;
+  } else {
+    proQuery = proQuery.eq("user_id", meta.pro_user_id).eq("is_sub_profile", false) as typeof proQuery;
+  }
+  const { data: pro } = await proQuery.maybeSingle();
 
   if (pro?.address) {
     studioAddress = pro.studio
@@ -88,7 +94,7 @@ export async function buildBookingEmailPayload(
     deposit: depositEur > 0 ? depositEur : undefined,
     depositPaid,
     cancellationPolicy: meta.cancellation_policy,
-    reference: meta.reference,
+    reference: meta.reference ?? meta.reference_image_url,
   };
 
   const proEmail = pro?.user_id
@@ -150,7 +156,7 @@ export async function insertBookingFromMetadata(
       .update(updatePayload)
       .eq("id", meta.booking_id);
     if (error) throw new Error(error.message);
-    return;
+    return meta.booking_id;
   }
 
   if (meta.client_email) {
@@ -168,12 +174,13 @@ export async function insertBookingFromMetadata(
         .update(updatePayload)
         .eq("id", existing.id);
       if (error) throw new Error(error.message);
-      return;
+      return existing.id;
     }
   }
 
-  const { error } = await admin.from("bookings").insert({
+  const { data: inserted, error } = await admin.from("bookings").insert({
     user_id: meta.pro_user_id,
+    pro_profile_id: meta.pro_profile_id ?? null,
     artist_slug: meta.artist_slug ?? null,
     artist_name: meta.artist_name ?? null,
     artist_studio: meta.artist_studio ?? null,
@@ -197,12 +204,14 @@ export async function insertBookingFromMetadata(
     cancellation_policy:
       (meta.cancellation_policy as CancellationPolicy) ?? "48h",
     refund_status: opts.depositPaid ? "none" : "not_applicable",
-  });
+  }).select("id").single();
 
   if (error) {
     console.error("[persist-booking] insert", error.message);
     throw new Error(error.message);
   }
+
+  return inserted?.id ?? null;
 }
 
 type FulfillBookingOptions = {
@@ -257,13 +266,24 @@ export async function fulfillDepositBooking(
   opts?: FulfillBookingOptions,
 ) {
   const logPrefix = opts?.logPrefix ?? "[persist-booking/deposit]";
+  const admin = createAdminClient();
 
   console.log(`${logPrefix} enregistrement booking confirmé`);
-  await insertBookingFromMetadata(meta, {
+  const bookingId = await insertBookingFromMetadata(meta, {
     depositPaid: true,
     status: "confirmed",
   });
   console.log(`${logPrefix} booking enregistré en base`);
+
+  // Injecter la photo de référence dans le tchat croquis si elle existe
+  if (bookingId && meta.reference_image_url) {
+    await insertSketchMessage(admin, {
+      booking_id: bookingId,
+      sender_role: "client",
+      message: "Photo de référence envoyée lors de la réservation.",
+      image_url: meta.reference_image_url,
+    }).catch((err) => console.warn(`${logPrefix} sketch message ref photo:`, err));
+  }
 
   const { bookingPayload, proEmail } = await buildBookingEmailPayload(
     meta,
@@ -273,6 +293,8 @@ export async function fulfillDepositBooking(
   await sendBookingEmails(bookingPayload, proEmail, logPrefix).catch((err) =>
     console.error(`${logPrefix} emails exception:`, err),
   );
+
+  return bookingId ?? null;
 }
 
 export async function fulfillPendingBooking(
@@ -280,13 +302,24 @@ export async function fulfillPendingBooking(
   opts?: FulfillBookingOptions,
 ) {
   const logPrefix = opts?.logPrefix ?? "[persist-booking/defer]";
+  const admin = createAdminClient();
 
   console.log(`${logPrefix} enregistrement booking pending`);
-  await insertBookingFromMetadata(meta, {
+  const bookingId = await insertBookingFromMetadata(meta, {
     depositPaid: false,
     status: "pending",
   });
   console.log(`${logPrefix} booking enregistré en base`);
+
+  // Injecter la photo de référence dans le tchat croquis si elle existe
+  if (bookingId && meta.reference_image_url) {
+    await insertSketchMessage(admin, {
+      booking_id: bookingId,
+      sender_role: "client",
+      message: "Photo de référence envoyée lors de la réservation.",
+      image_url: meta.reference_image_url,
+    }).catch((err) => console.warn(`${logPrefix} sketch message ref photo:`, err));
+  }
 
   const { bookingPayload, proEmail } = await buildBookingEmailPayload(
     meta,
@@ -296,4 +329,6 @@ export async function fulfillPendingBooking(
   await sendBookingEmails(bookingPayload, proEmail, logPrefix).catch((err) =>
     console.error(`${logPrefix} emails exception:`, err),
   );
+
+  return bookingId ?? null;
 }

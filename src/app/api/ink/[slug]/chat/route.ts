@@ -164,20 +164,29 @@ Date et créneaux :
 Ordre strict des questions :
 1. Style de tatouage — propose uniquement ces styles du tatoueur :
 ${styleList}
-2. Zone du corps
+2. Zone du corps — appelle show_body_selector (message d'intro concis, genre male par défaut) pour afficher le mannequin 3D interactif. N'accepte pas une zone textuelle avant que le client ait utilisé le sélecteur (sauf si le client décrit déjà une zone précise avant que tu puisses appeler l'outil)
 3. Taille approximative (petit <10cm, moyen 10-25cm, grand 25cm+)
-4. Description du projet — demande : « Avez-vous une idée de ce que vous souhaitez représenter ? Même vague, ça m'aide à préparer le tatoueur. »
-   - Si le client décrit quelque chose (ex: "un chat dans un arbre") : enregistre-le tel quel dans reference_note.
-   - Si le client est hésitant ou dit "je ne suis pas sûr" : enregistre quand même sa description en ajoutant " (à confirmer lors des croquis)" dans reference_note.
-   - Si le client dit "non" ou "pas d'idée" : passe à la suite, reference_note sera null.
-5. Couleur — demande exactement : « Souhaitez-vous un tatouage en couleur, en noir et gris, ou vous n'avez pas encore décidé ? »
+4. Description du projet / Flash choisi :
+   A) Si le style est Flash :
+      - Demande : « Quel flash vous intéresse ? Envoyez-moi une photo ou un screenshot du design que vous avez vu dans le portfolio du tatoueur. »
+      - Dès que le client envoie une image : analyse-la, confirme le design (ex : « Super, je vois que vous souhaitez ce flash [description]. C'est bien ça ? »), enregistre dans reference_note.
+      - Si le client dit qu'il n'a pas encore choisi : dis-lui de regarder le portfolio du tatoueur et de revenir quand il aura choisi.
+      - Passe ensuite directement à l'étape 7 (budget) — pas besoin de demander la couleur ni une image supplémentaire (le design est déjà défini).
+   B) Sinon (style classique) :
+      - Demande : « Avez-vous une idée de ce que vous souhaitez représenter ? Même vague, ça m'aide à préparer le tatoueur. »
+      - Si le client décrit quelque chose : enregistre tel quel dans reference_note.
+      - Si hésitant : enregistre avec " (à confirmer lors des croquis)" dans reference_note.
+      - Si "non" ou "pas d'idée" : passe à la suite, reference_note sera null.
+5. Couleur (uniquement si style NON Flash) — demande exactement : « Souhaitez-vous un tatouage en couleur, en noir et gris, ou vous n'avez pas encore décidé ? »
    Enregistre color_preference : "color" | "black_and_grey" | "undecided"
-6. Image de référence (optionnel — le client peut dire "non" ou "passer")
-7. Budget approximatif en euros
-   - Dès que tu as le budget, appelle get_price_estimate (style + taille + color_preference déjà connus).
-   - Si price_estimate.min > budget : dis-le clairement avant de continuer, ex : « Pour un tatouage [style] de taille [taille] en [couleur], l'estimation est de X–Y€. Avec un budget de Z€, il faudra probablement prévoir un peu plus. Souhaitez-vous continuer malgré tout ? »
-   - Si le client confirme qu'il veut continuer : poursuis normalement.
-   - Ne bloque pas la réservation, informe seulement.
+   Pour un Flash : color_preference = "undecided" (défini par le design).
+6. Image de référence (uniquement si style NON Flash, optionnel — le client peut dire "non" ou "passer")
+7. Estimation de prix — NE demande PAS le budget au client.
+   - Appelle get_price_estimate dès que tu as style + taille + color_preference. Passe aussi la zone du corps si elle est connue (multiplicateur de zone appliqué).
+   - Annonce le tarif au client : « Pour ce tatouage, il faudra compter entre X et Y€. Ça vous convient ? »
+   - Si le client dit oui ou ne conteste pas : poursuis normalement.
+   - Si le client dit que c'est trop cher : sois compréhensif, propose d'ajuster la taille si pertinent (ex : passer en petit), puis relance l'estimation. Si aucune solution, laisse-le continuer ou non à sa discrétion.
+   - Ne demande jamais « quel est votre budget ? ».
 8. Dates souhaitées (une ou plusieurs) — utilise l'outil check_preferred_dates
 9. Préférence horaire — demande exactement : « Préférez-vous un rendez-vous le matin ou l'après-midi ? »
    Enregistre time_preference : "morning" | "afternoon" | "any" (si indifférent)
@@ -200,7 +209,7 @@ ${hasReferenceImage
 
 Règles :
 - UNE question à la fois. Réagis brièvement à chaque réponse.
-- Le budget est une information textuelle : ne déclenche aucun outil tant que les dates ne sont pas collectées.
+- Appelle get_price_estimate dès que style + taille + color_preference sont connus (étape 7), avant de demander les dates.
 - Si une date est bloquée (outil check_preferred_dates), dis qu'elle est indisponible.
 - Si propose_available_slots retourne slots vides ou has_working_hours false, explique que le tatoueur n'a pas encore configuré ses disponibilités et propose d'autres dates.
 - Respecte les horaires et créneaux retournés par les outils (ne invente pas de créneaux).
@@ -208,7 +217,7 @@ Règles :
 - Si le client dit « oui le 17 juin à 10h », enregistre slot_date=2026-06-17 et slot_time=10:00.
 - Si le client demande une heure précise différente des 3 créneaux proposés (ex: "à 16h", "vers 14h"), utilise get_day_slots avec la date choisie pour voir TOUS les créneaux disponibles ce jour-là, puis confirme si cette heure est dispo ou propose les alternatives les plus proches.
 - Si le client a envoyé une image dans le chat, repasse son URL dans reference_image_url lors de complete_booking_intake.
-- Quand tu as TOUT (style, zone, taille, color_preference, budget, créneau, nom, email, téléphone), appelle complete_booking_intake.
+- Quand tu as TOUT (style, zone, taille, color_preference, créneau, nom, email, téléphone), appelle complete_booking_intake. Pour le champ budget, passe l'estimation retournée par get_price_estimate (format "X-Y€" ou la valeur min).
 - Après complete_booking_intake, écris uniquement : "Parfait ! Voici le récapitulatif de votre réservation ↓"
 - Ne mentionne pas Stripe ni les détails techniques.`;
 }
@@ -367,13 +376,14 @@ export async function POST(
        */
       get_price_estimate: tool({
         description:
-          "Calcule une estimation de prix (min/max en €) selon style, taille et couleur, en utilisant les vrais tarifs du tatoueur. À appeler après avoir recueilli le budget du client pour vérifier s'il est suffisant.",
+          "Calcule une estimation de prix (min/max en €) selon style, taille, zone du corps et couleur, en utilisant les vrais tarifs du tatoueur (multiplicateurs de zone inclus). Passe toujours la zone si elle est connue.",
         inputSchema: z.object({
           style: z.string(),
           size: z.string(),
+          zone: z.string().optional().describe("Zone du corps sélectionnée (ex: Avant-bras, Dos, Cheville…)"),
           color_preference: z.enum(["color", "black_and_grey", "undecided"]),
         }),
-        execute: async ({ style, size, color_preference }) =>
+        execute: async ({ style, size, zone, color_preference }) =>
           safeToolExecute("get_price_estimate", async () => {
             const admin = createAdminClient();
             const { data: pricingRow } = await admin
@@ -382,7 +392,7 @@ export async function POST(
               .eq("user_id", proUserId)
               .maybeSingle();
             const estimate = estimatePrice(
-              { style, size },
+              { style, size, bodyZone: zone },
               pricingRow ?? null,
               color_preference,
             );
@@ -390,7 +400,27 @@ export async function POST(
           }),
       }),
 
+
       /**
+       * Affiche le sélecteur 3D interactif de zone corporelle côté client.
+       * À appeler UNIQUEMENT à l'étape 2 (zone du corps) pour laisser le client
+       * choisir visuellement son emplacement sur le mannequin 3D.
+       */
+      show_body_selector: tool({
+        description:
+          "Affiche le sélecteur 3D interactif du corps humain pour que le client choisisse la zone de son tatouage. À appeler à l'étape 2 (zone du corps) AVANT de demander verbalement la zone.",
+        inputSchema: z.object({
+          message: z.string().describe("Courte phrase d'introduction avant le sélecteur (ex: 'Veuillez sélectionner la zone sur ce mannequin 3D :')"),
+          gender: z.enum(["male", "female"]).optional().describe("Sexe du mannequin (défaut: male)"),
+        }),
+        execute: async ({ message, gender = "male" }) => ({
+          selector_shown: true,
+          message,
+          gender,
+        }),
+      }),
+
+            /**
        * Finalise le dossier client une fois toutes les informations collectées.
        *
        * Actions réalisées :
