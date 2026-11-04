@@ -12,12 +12,16 @@ function navClass(active: boolean) {
 export function ClientDashboardNav() {
   const pathname = usePathname();
   const onBookings = pathname === "/client/dashboard";
+  const onSante = pathname.startsWith("/client/dashboard/sante");
   const onSettings = pathname.startsWith("/client/dashboard/parametres");
 
   return (
     <nav className="mt-6 flex flex-col gap-2 text-sm md:mt-8">
       <Link href="/client/dashboard" className={navClass(onBookings)}>
         Mes rendez-vous
+      </Link>
+      <Link href="/client/dashboard/sante" className={navClass(onSante)}>
+        Fiche santé
       </Link>
       <Link href="/client/dashboard/parametres" className={navClass(onSettings)}>
         Paramètres
