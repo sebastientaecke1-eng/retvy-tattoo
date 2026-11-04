@@ -283,7 +283,7 @@ export default function AdminPage() {
             <Zap className="h-4 w-4" /> Voir comme pro
           </a>
           <a
-            href="/client/dashboard?enter_client_view=1"
+            href="/client/dashboard"
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors"
           >
             <Eye className="h-4 w-4" /> Voir comme client

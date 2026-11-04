@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { ClientDashboardNav } from "@/components/client/client-dashboard-nav";
@@ -16,10 +15,7 @@ export default async function ClientDashboardLayout({
   } = await supabase.auth.getUser();
   if (!user) redirect("/connexion?next=/client/dashboard");
 
-  const cookieStore = await cookies();
-  const isAdminViewingAsClient =
-    user.email === "sebastientaecke1@gmail.com" &&
-    cookieStore.get("retvy_view_as_client")?.value === "true";
+  const isAdminViewingAsClient = user.email === "sebastientaecke1@gmail.com";
 
   const name =
     (user.user_metadata?.first_name as string) ||
@@ -32,7 +28,7 @@ export default async function ClientDashboardLayout({
         <div className="sticky top-0 z-50 flex items-center justify-between gap-3 bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950">
           <span>👁 Mode aperçu — vue client</span>
           <a
-            href="/admin?exit_client_view=1"
+            href="/admin"
             className="rounded-full bg-emerald-950/20 px-3 py-1 text-xs font-bold hover:bg-emerald-950/30 transition-colors"
           >
             ← Retour admin
