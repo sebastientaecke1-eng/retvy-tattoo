@@ -97,7 +97,7 @@ export function MannequinSelector({
           className="w-full h-full border-0"
           onLoad={() => setLoaded(true)}
           title="Sélecteur de zone corporelle"
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
         />
       </div>
 
