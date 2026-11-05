@@ -164,7 +164,7 @@ Date et créneaux :
 Ordre strict des questions :
 1. Style de tatouage — propose uniquement ces styles du tatoueur :
 ${styleList}
-2. Zone du corps — appelle show_body_selector (message d'intro concis, genre male par défaut) pour afficher le mannequin 3D interactif. N'accepte pas une zone textuelle avant que le client ait utilisé le sélecteur (sauf si le client décrit déjà une zone précise avant que tu puisses appeler l'outil)
+2. Zone du corps — tu DOIS OBLIGATOIREMENT appeler l'outil show_body_selector immédiatement après avoir reçu le style. Ne jamais demander la zone par texte, ne jamais écrire le nom du mannequin dans le message : appelle directement l'outil avec un message d'intro très court (ex: "Sélectionnez la zone sur ce mannequin :"). Genre male par défaut.
 3. Taille approximative (petit <10cm, moyen 10-25cm, grand 25cm+)
 4. Description du projet / Flash choisi :
    A) Si le style est Flash :
