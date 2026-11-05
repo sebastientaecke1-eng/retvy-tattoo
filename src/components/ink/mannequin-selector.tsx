@@ -22,34 +22,26 @@ export function MannequinSelector({
 }: MannequinSelectorProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [loaded, setLoaded] = useState(false);
-  const [pendingZones, setPendingZones] = useState<string[] | null>(null);
-
   // Écoute les messages postMessage depuis l'iframe mannequin
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
       if (
         event.data &&
         event.data.type === "retvy-zones-selected" &&
-        Array.isArray(event.data.zones)
+        Array.isArray(event.data.zones) &&
+        event.data.zones.length > 0
       ) {
-        setPendingZones(event.data.zones as string[]);
+        onZonesSelected(event.data.zones as string[]);
       }
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [onZonesSelected]);
 
   // Le src dépend du genre — pour l'instant un seul modèle
   const src = gender === "female" ? "/mannequin3d-female.html" : "/mannequin3d-male.html";
 
-  function handleConfirm() {
-    if (!pendingZones?.length) return;
-    onZonesSelected(pendingZones);
-    setPendingZones(null);
-  }
-
   function handleReset() {
-    setPendingZones(null);
     // Recharge l'iframe pour réinitialiser la sélection
     if (iframeRef.current) {
       iframeRef.current.src = src;
@@ -109,21 +101,7 @@ export function MannequinSelector({
         />
       </div>
 
-      {/* Zones sélectionnées + bouton confirmer */}
-      {pendingZones && pendingZones.length > 0 && (
-        <div className="border-t border-zinc-800 bg-zinc-900/60 px-4 py-3 flex items-center justify-between gap-3">
-          <div className="text-xs text-zinc-400 flex-1">
-            <span className="text-zinc-300 font-medium">Zones : </span>
-            {pendingZones.join(", ")}
-          </div>
-          <button
-            onClick={handleConfirm}
-            className="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 transition-colors"
-          >
-            Valider cette zone →
-          </button>
-        </div>
-      )}
+
     </div>
   );
 }
