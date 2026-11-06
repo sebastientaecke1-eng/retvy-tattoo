@@ -130,6 +130,7 @@ export async function prepareInkBooking(
     .from("pro_profiles")
     .select("stripe_account_id, studio")
     .eq("user_id", profile.user_id)
+    .eq("is_sub_profile", false)
     .maybeSingle();
 
   if (proRowError) {
