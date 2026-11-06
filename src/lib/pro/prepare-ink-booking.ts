@@ -14,6 +14,7 @@ export type PreparedInkBooking = {
   body: z.infer<typeof inkBookBodySchema>;
   slug: string;
   proUserId: string;
+  proProfileId: string;
   artistName: string;
   artistStudio: string;
   depositEur: number;
@@ -90,7 +91,27 @@ export async function prepareInkBooking(
     };
   }
 
+  // Vérification du délai minimum 24H si le pro l'a activé
   const admin = createAdminClient();
+  const { data: proLockRow } = await admin
+    .from("pro_profiles")
+    .select("cancellation_24h_lock")
+    .eq("user_id", profile.user_id)
+    .eq("is_sub_profile", false)
+    .maybeSingle();
+
+  if (proLockRow?.cancellation_24h_lock) {
+    const slotIso = `${body.slot_date}T${body.slot_time}:00`;
+    const hoursUntilSlot = (new Date(slotIso).getTime() - Date.now()) / (1000 * 60 * 60);
+    if (hoursUntilSlot < 24) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Ce tatoueur nécessite au moins 24h de préavis. Veuillez choisir un créneau plus éloigné.",
+      };
+    }
+  }
+
   const [{ data: depositRow }, depositEur] = await Promise.all([
     admin
       .from("pro_deposit_settings")
@@ -126,6 +147,7 @@ export async function prepareInkBooking(
       body,
       slug,
       proUserId: profile.user_id,
+      proProfileId: profile.id ?? "",
       artistName: profile.artist_name,
       artistStudio: proRow?.studio ?? profile.studio ?? "",
       depositEur,
@@ -141,6 +163,7 @@ export function bookingMetadataFromPrepared(prepared: PreparedInkBooking) {
   return {
     kind: "deposit",
     pro_user_id: prepared.proUserId,
+    pro_profile_id: prepared.proProfileId,
     artist_slug: prepared.slug,
     artist_name: prepared.artistName,
     artist_studio: prepared.artistStudio,
