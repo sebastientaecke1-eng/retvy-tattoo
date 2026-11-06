@@ -221,6 +221,7 @@ function confirmZones(){
   if(!zones.length)return;
   window.parent.postMessage({type:'retvy-zones-selected',zones},'*');
 }
+window.confirmZones=confirmZones;
 function updateUI(){
   const n=selectedCells.size;
   counter.textContent=n===0?'Cliquer sur le corps pour sélectionner':`${n} carré${n>1?'s':''} sélectionné${n>1?'s':''}`;
